@@ -1,0 +1,8 @@
+from .Userserializer import RemoteUserSerializer, CreateUserSerializer, ChangePasswordSerializer
+from .EntrepriseSerializer import EntrepriseSerializer, CreateEntrepriseSerializer
+from .ProduitSerializer import ProduitSerializer, ProduitCreateSerializer
+from .CampagneSerializer import CampagneListSerializer, CampagneDetailSerializer, CampagneWriteSerializer
+from .SiteSerializer import SiteListSerializer, SiteDetailSerializer, SiteWriteSerializer
+from .TeamSerializer import TeamMemberSerializer
+from .DegustationSerializer import DegustationSerializer
+from .VenteSerializer import VenteSerializer, VenteLightSerializer

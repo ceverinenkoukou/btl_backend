@@ -1,0 +1,72 @@
+from django.db.models import Sum, Count, Q
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
+from btl.models import Vente, RemoteUser
+from btl.permissions import IsPasswordChanged
+from btl.serializers.VenteSerializer import VenteSerializer
+
+
+class VenteViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Ventes en lecture seule.
+    Créées automatiquement lors d'une dégustation avec a_achete=True.
+
+    Règles d'accès :
+    - Hôtesse     : voit uniquement ses propres ventes
+    - Superviseur : voit les ventes de ses sites
+    - Entreprise  : voit toutes les ventes de ses campagnes
+    - Admin       : voit tout
+    """
+    serializer_class = VenteSerializer
+    permission_classes = [IsAuthenticated, IsPasswordChanged]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.role == RemoteUser.Roles.ADMIN:
+            return Vente.objects.all()
+
+        if user.role == RemoteUser.Roles.HOTESSES:
+            return Vente.objects.filter(hotesse=user)
+
+        if user.role == RemoteUser.Roles.SUPERVISEUR:
+            return Vente.objects.filter(site__in=user.sites_supervises.all())
+
+        if user.role == RemoteUser.Roles.ENTREPRISES:
+            return Vente.objects.filter(site__campagne__entreprise__user=user)
+
+        return Vente.objects.none()
+
+    @action(detail=False, methods=['get'], url_path='stats')
+    def stats(self, request):
+        """
+        GET /api/ventes/stats/
+        Statistiques de ventes agrégées pour le contexte de l'utilisateur connecté.
+        Filtres optionnels : ?campagne_id=<uuid>  ?site_id=<uuid>
+        """
+        qs = self.get_queryset()
+
+        campagne_id = request.query_params.get('campagne_id')
+        site_id = request.query_params.get('site_id')
+
+        if campagne_id:
+            qs = qs.filter(site__campagne__id=campagne_id)
+        if site_id:
+            qs = qs.filter(site__id=site_id)
+
+        totaux = qs.aggregate(
+            total_ventes=Count('id'),
+            total_unites=Sum('quantite'),
+            ventes_pack=Count('id', filter=Q(conditionnement=Vente.TypeConditionnement.PACK)),
+            ventes_unite=Count('id', filter=Q(conditionnement=Vente.TypeConditionnement.UNITE)),
+        )
+
+        return Response({
+            'total_ventes': totaux['total_ventes'] or 0,
+            'total_unites_vendues': totaux['total_unites'] or 0,
+            'ventes_en_pack': totaux['ventes_pack'] or 0,
+            'ventes_a_lunite': totaux['ventes_unite'] or 0,
+        })
