@@ -23,4 +23,14 @@ echo "PostgreSQL est prêt!"
 python manage.py migrate --noinput
 
 echo "Démarrage de l'application..."
-exec "$@"
+
+# Si aucune commande spécifique n'est fournie au conteneur, on démarre Gunicorn
+if [ $# -eq 0 ]; then
+    # Utilise la variable PORT de Railway (qui sera 8003), ou 8003 par défaut
+    TARGET_PORT=${PORT:-8003}
+    echo "Lancement de Gunicorn sur le port $TARGET_PORT..."
+    exec gunicorn config.wsgi:application --bind 0.0.0.0:$TARGET_PORT
+else
+    # Sinon, exécute la commande passée (ex: en local avec docker-compose)
+    exec "$@"
+fi
