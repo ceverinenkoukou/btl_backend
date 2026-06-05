@@ -5,8 +5,10 @@ from rest_framework.permissions import AllowAny
 
 from btl.models import RemoteUser
 from btl.permissions import IsAdmin
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 
-
+@method_decorator(csrf_exempt, name="dispatch")
 class SetupAdminView(APIView):
     """
     GET  /api/auth/setup/ — Vérifie si un premier admin existe (public).
