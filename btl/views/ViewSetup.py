@@ -1,3 +1,5 @@
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -5,10 +7,9 @@ from rest_framework.permissions import AllowAny
 
 from btl.models import RemoteUser
 from btl.permissions import IsAdmin
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 
-@method_decorator(csrf_exempt, name="dispatch")
+
+@method_decorator(csrf_exempt, name="dispatch")  # PROTECTION CSRF DÉSACTIVÉE ICI
 class SetupAdminView(APIView):
     """
     GET  /api/auth/setup/ — Vérifie si un premier admin existe (public).
@@ -16,9 +17,8 @@ class SetupAdminView(APIView):
                             • Aucune auth requise si aucun admin n'existe encore.
                             • Auth + rôle Admin requis si un admin existe déjà.
     """
-    # CORRECTION ICI : On écrase la configuration globale pour permettre la flexibilité des requêtes
     authentication_classes = []  # Permet de recevoir des requêtes sans Token JWT obligatoire
-    permission_classes = [AllowAny] # Donne une permission par défaut, gérée dynamiquement après
+    permission_classes = [AllowAny] # Donne une permission par défaut
 
     def get_permissions(self):
         if self.request.method == "GET":
@@ -30,8 +30,6 @@ class SetupAdminView(APIView):
             return [AllowAny()]
         
         # Si un admin existe, on réactive la sécurité habituelle
-        # Note : Si IsAdmin() exige que l'utilisateur soit connecté, tu peux avoir besoin 
-        # de réimporter ou d'ajouter l'authentification JWT ici si nécessaire pour les admins suivants.
         from rest_framework_simplejwt.authentication import JWTAuthentication
         self.request.authenticator = JWTAuthentication()
         return [IsAdmin()]
