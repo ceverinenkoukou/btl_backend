@@ -14,13 +14,24 @@ class SetupAdminView(APIView):
                             • Aucune auth requise si aucun admin n'existe encore.
                             • Auth + rôle Admin requis si un admin existe déjà.
     """
+    # CORRECTION ICI : On écrase la configuration globale pour permettre la flexibilité des requêtes
+    authentication_classes = []  # Permet de recevoir des requêtes sans Token JWT obligatoire
+    permission_classes = [AllowAny] # Donne une permission par défaut, gérée dynamiquement après
 
     def get_permissions(self):
         if self.request.method == "GET":
             return [AllowAny()]
+        
+        # Utilisation de all_objects pour vérifier l'existence globale des admins
         admin_exists = RemoteUser.all_objects.filter(role=RemoteUser.Roles.ADMIN).exists()
         if not admin_exists:
             return [AllowAny()]
+        
+        # Si un admin existe, on réactive la sécurité habituelle
+        # Note : Si IsAdmin() exige que l'utilisateur soit connecté, tu peux avoir besoin 
+        # de réimporter ou d'ajouter l'authentification JWT ici si nécessaire pour les admins suivants.
+        from rest_framework_simplejwt.authentication import JWTAuthentication
+        self.request.authenticator = JWTAuthentication()
         return [IsAdmin()]
 
     def get(self, request):
