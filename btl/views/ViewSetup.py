@@ -6,36 +6,23 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 
 from btl.models import RemoteUser
-from btl.permissions import IsAdmin
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class SetupAdminView(APIView):
     """
-    GET  /api/auth/setup/ — Vérifie si un premier admin existe (public).
-    POST /api/auth/setup/ — Crée un administrateur.
-                            • Aucune auth requise si aucun admin n'existe encore.
-                            • Auth + rôle Admin requis si un admin existe déjà.
+    Endpoint temporaire totalement ouvert pour le développement.
+    GET  /api/auth/setup/ — Vérifie si un admin existe (public).
+    POST /api/auth/setup/ — Crée un administrateur (public, aucune restriction).
     """
-    # CORRECTION CRITIQUE : On utilise (None,) ou on surcharge pour bloquer SessionAuthentication 
-    # qui générait l'erreur 403 CSRF en arrière-plan.
+    # Désactive l'authentification de session (évite les erreurs 403 CSRF)
     authentication_classes = ()  
+    # Autorise absolument tout le monde à accéder à cet endpoint
     permission_classes = [AllowAny]
 
     def get_permissions(self):
-        if self.request.method == "GET":
-            return [AllowAny()]
-        
-        # CORRECTION : On utilise .objects au lieu de .all_objects pour éviter 
-        # qu'un admin supprimé logiquement ne bloque la configuration initiale.
-        admin_exists = RemoteUser.objects.filter(role=RemoteUser.Roles.ADMIN).exists()
-        if not admin_exists:
-            return [AllowAny()]
-        
-        # Si un admin existe déjà, on réactive l'authentification JWT requise pour IsAdmin
-        from rest_framework_simplejwt.authentication import JWTAuthentication
-        self.request.authenticator = JWTAuthentication()
-        return [IsAdmin()]
+        # On renvoie AllowAny pour le GET et le POST sans aucune condition
+        return [AllowAny()]
 
     def get(self, request):
         admin_exists = RemoteUser.objects.filter(role=RemoteUser.Roles.ADMIN).exists()
@@ -53,6 +40,7 @@ class SetupAdminView(APIView):
             )
 
         try:
+            # create_superuser crée directement un utilisateur avec le rôle et les accès max
             admin = RemoteUser.objects.create_superuser(
                 email=email,
                 name=name,
