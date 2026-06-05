@@ -107,102 +107,146 @@ class CampagneViewSet(viewsets.ModelViewSet):
             {"detail": "Équipe de la campagne mise à jour avec succès."},
             status=status.HTTP_200_OK
         )
-
-    @action(detail=True, methods=['get'], url_path='rapport-sites')
-    def rapport_sites(self, request, pk=None):
+@action(detail=True, methods=['get'], url_path='rapport-sites')
+def rapport_sites(self, request, pk=None):
         """
         GET /api/campagnes/{id}/rapport-sites/
-        Synthèse par site : performances, répartition produits, goodies distribués.
+        Synthèse par site : performances, répartition produits, goodies distribués 
+        adaptés dynamiquement selon le type de campagne et de récompense.
         """
         campagne = self.get_object()
         sites_payload = []
         total_goodies_distribues = 0
 
+        # On extrait les types pour appliquer les règles métiers
+        est_mode_degustation = campagne.type_campagne in (Campagne.TypeCampagne.DEGUSTATION, Campagne.TypeCampagne.DEGUSTATION_VENTE)
+        est_mode_vente = campagne.type_campagne in (Campagne.TypeCampagne.VENTE, Campagne.TypeCampagne.DEGUSTATION_VENTE)
+        a_des_goodies = campagne.type_recompense == Campagne.TypeRecompense.GOODIES
+
         for site in campagne.sites.all().prefetch_related(
             'stocks_goodies__goodie', 'hotesses', 'superviseurs'
         ):
-            tastings_qs = Degustation.objects.filter(site=site, campagne=campagne)
-            ventes_qs = Vente.objects.filter(site=site)
-            degustations_count = tastings_qs.count()
-            acheteurs_count = tastings_qs.filter(a_achete=True).count()
-            ventes_count = ventes_qs.count()
-            chiffre_affaires = ventes_qs.aggregate(
-                total=Sum(F('produit__prix_indicatif') * F('quantite'))
-            )['total'] or 0
+            # 1. Gestion des Dégustations
+            if est_mode_degustation:
+                tastings_qs = Degustation.objects.filter(site=site, campagne=campagne)
+                degustations_count = tastings_qs.count()
+                acheteurs_count = tastings_qs.filter(a_achete=True).count()
+            else:
+                tastings_qs = Degustation.objects.none()
+                degustations_count = 0
+                acheteurs_count = 0
 
+            # 2. Gestion des Ventes & Chiffre d'affaires
+            if est_mode_vente:
+                ventes_qs = Vente.objects.filter(site=site)
+                ventes_count = ventes_qs.count()
+                chiffre_affaires = ventes_qs.aggregate(
+                    total=Sum(F('produit__prix_indicatif') * F('quantite'))
+                )['total'] or 0
+            else:
+                ventes_qs = Vente.objects.none()
+                ventes_count = 0
+                chiffre_affaires = 0
+
+            # 3. Répartition des Produits
             produits_map = {}
-            for row in tastings_qs.values('produit__nom').annotate(
-                degustations=Count('id')
-            ):
-                nom = row['produit__nom'] or 'Produit'
-                produits_map[nom] = {
-                    'produit_nom': nom,
-                    'degustations': row['degustations'],
-                    'ventes': 0,
-                }
-            for row in ventes_qs.values('produit__nom').annotate(ventes=Count('id')):
-                nom = row['produit__nom'] or 'Produit'
-                if nom not in produits_map:
+            if est_mode_degustation:
+                for row in tastings_qs.values('produit__nom').annotate(degustations=Count('id')):
+                    nom = row['produit__nom'] or 'Produit'
                     produits_map[nom] = {
                         'produit_nom': nom,
-                        'degustations': 0,
-                        'ventes': row['ventes'],
+                        'degustations': row['degustations'],
+                        'ventes': 0,
                     }
-                else:
-                    produits_map[nom]['ventes'] = row['ventes']
+            
+            if est_mode_vente:
+                for row in ventes_qs.values('produit__nom').annotate(ventes=Count('id')):
+                    nom = row['produit__nom'] or 'Produit'
+                    if nom not in produits_map:
+                        produits_map[nom] = {
+                            'produit_nom': nom,
+                            'degustations': 0,
+                            'ventes': row['ventes'],
+                        }
+                    else:
+                        produits_map[nom]['ventes'] = row['ventes']
 
             produits_list = sorted(
                 produits_map.values(),
-                key=lambda p: p['degustations'],
+                key=lambda p: p['degustations'] if est_mode_degustation else p['ventes'],
                 reverse=True,
             )
 
+            # 4. Gestion des Goodies (Roue de la fortune)
             goodies_list = []
             site_goodies_distribues = 0
-            for stock in site.stocks_goodies.all():
-                distribue = max(
-                    0,
-                    stock.quantite_initiale - stock.quantite_restante,
-                )
-                site_goodies_distribues += distribue
-                goodies_list.append({
-                    'goodie_id': str(stock.goodie_id),
-                    'goodie_nom': stock.goodie.nom,
-                    'quantite_initiale': stock.quantite_initiale,
-                    'quantite_restante': stock.quantite_restante,
-                    'quantite_distribuee': distribue,
-                })
+            
+            if a_des_goodies:
+                for stock in site.stocks_goodies.all():
+                    distribue = max(0, stock.quantite_initiale - stock.quantite_restante)
+                    site_goodies_distribues += distribue
+                    goodies_list.append({
+                        'goodie_id': str(stock.goodie_id),
+                        'goodie_nom': stock.goodie.nom,
+                        'quantite_initiale': stock.quantite_initiale,
+                        'quantite_restante': stock.quantite_restante,
+                        'quantite_distribuee': distribue,
+                    })
 
             total_goodies_distribues += site_goodies_distribues
             taux_conversion = (
                 round((acheteurs_count / degustations_count) * 100)
-                if degustations_count else 0
+                if degustations_count and est_mode_degustation else 0
             )
 
-            sites_payload.append({
+            # Construction du payload adapté
+            payload_site = {
                 'id': str(site.id),
                 'nom': site.nom,
                 'ville': site.ville,
                 'emplacement_precis': site.emplacement_precis,
                 'nb_hotesses': site.hotesses.count(),
                 'nb_superviseurs': site.superviseurs.count(),
-                'degustations': degustations_count,
-                'acheteurs': acheteurs_count,
-                'ventes': ventes_count,
-                'taux_conversion': taux_conversion,
-                'chiffre_affaires': str(chiffre_affaires),
-                'produits': produits_list,
-                'goodies': goodies_list,
-                'goodies_distribues_total': site_goodies_distribues,
-            })
+            }
+
+            # On n'injecte les clés dans le JSON que si elles concernent le type de campagne choisi
+            if est_mode_degustation:
+                payload_site.update({
+                    'degustations': degustations_count,
+                    'acheteurs': acheteurs_count,
+                    'taux_conversion': taux_conversion,
+                })
+            
+            if est_mode_vente:
+                payload_site.update({
+                    'ventes': ventes_count,
+                    'chiffre_affaires': str(chiffre_affaires),
+                })
+
+            payload_site['produits'] = produits_list
+
+            if a_des_goodies:
+                payload_site.update({
+                    'goodies': goodies_list,
+                    'goodies_distribues_total': site_goodies_distribues,
+                })
+
+            sites_payload.append(payload_site)
+
+        # Totaux généraux de la réponse
+        totaux = {'sites': len(sites_payload)}
+        if est_mode_degustation:
+            totaux['degustations'] = sum(s.get('degustations', 0) for s in sites_payload)
+        if est_mode_vente:
+            totaux['ventes'] = sum(s.get('ventes', 0) for s in sites_payload)
+        if a_des_goodies:
+            totaux['goodies_distribues'] = total_goodies_distribues
 
         return Response({
             'campagne_id': str(campagne.id),
             'campagne_nom': campagne.nom,
+            'type_campagne': campagne.type_campagne,
+            'type_recompense': campagne.type_recompense,
             'sites': sites_payload,
-            'totaux': {
-                'sites': len(sites_payload),
-                'degustations': sum(s['degustations'] for s in sites_payload),
-                'goodies_distribues': total_goodies_distribues,
-            },
+            'totaux': totaux,
         })

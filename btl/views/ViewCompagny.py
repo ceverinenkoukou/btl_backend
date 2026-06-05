@@ -92,14 +92,15 @@ class EntrepriseViewSet(viewsets.ModelViewSet):
         email_sent = False
         email_error = None
         try:
-            envoyer_email_bienvenue_entreprise(entreprise, password)
+            # On importe et on lance la tâche Celery en arrière-plan
+            from btl.tasks import task_envoyer_email_bienvenue_entreprise
+            task_envoyer_email_bienvenue_entreprise.delay(entreprise.id, password)
             email_sent = True
         except Exception as exc:
             email_error = str(exc)
             logger.exception(
-                "Échec envoi e-mail de bienvenue pour l'entreprise %s (%s)",
+                "Échec de la mise en file d'attente Celery de l'e-mail pour %s",
                 entreprise.nom_commercial,
-                entreprise.user.email,
             )
 
         payload = EntrepriseSerializer(entreprise).data

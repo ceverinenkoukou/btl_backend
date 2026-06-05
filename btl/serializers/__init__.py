@@ -6,3 +6,4 @@ from .SiteSerializer import SiteListSerializer, SiteDetailSerializer, SiteWriteS
 from .TeamSerializer import TeamMemberSerializer
 from .DegustationSerializer import DegustationSerializer
 from .VenteSerializer import VenteSerializer, VenteLightSerializer
+from .PromotionSerializer import PromotionSerializer

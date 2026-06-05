@@ -131,15 +131,43 @@ class Goodie(BaseModel):
 
 
 class Campagne(BaseModel):
+
+    class TypeCampagne(models.TextChoices):
+        DEGUSTATION = "DEGUSTATION", "Dégustation"
+        VENTE = "VENTE", "Vente"
+        DEGUSTATION_VENTE = "DEGUSTATION_VENTE", "Dégustation-Vente"
+
+    class TypeRecompense(models.TextChoices):
+        AUCUNE = "AUCUNE", "Aucune"
+        GOODIES = "GOODIES", "Goodies (Roue de la fortune)"
+        PROMOTIONS = "PROMOTIONS", "Promotions (Produits offerts)"
+    
     entreprise = models.ForeignKey(
         Entreprise,
         on_delete=models.CASCADE,
         related_name='campagnes'
     )
     nom = models.CharField(max_length=255)
+    
+    # --- Nouveaux Champs de Configuration ---
+    type_campagne = models.CharField(
+        max_length=20,
+        choices=TypeCampagne.choices,
+        default=TypeCampagne.DEGUSTATION_VENTE,
+        help_text="Détermine les indicateurs et formulaires affichés sur les Dashboards."
+    )
+    type_recompense = models.CharField(
+        max_length=20,
+        choices=TypeRecompense.choices,
+        default=TypeRecompense.AUCUNE,
+        help_text="Définit si la campagne implique des goodies ou des mécaniques promotionnelles."
+    )
+
     date_debut = models.DateField()
     date_fin = models.DateField()
     description = models.TextField(blank=True, null=True)
+    
+    # Ces objectifs peuvent devenir optionnels ou requis selon le type_campagne choisi
     objectif_degustations = models.PositiveIntegerField(null=True, blank=True)
     objectif_ventes = models.PositiveIntegerField(null=True, blank=True)
 
@@ -165,9 +193,7 @@ class Campagne(BaseModel):
         return self.entreprise.produits.all()
 
     def __str__(self):
-        return f"{self.nom} - {self.entreprise.nom_commercial}"
-
-
+        return f"{self.nom} - {self.entreprise.nom_commercial} ({self.get_type_campagne_display()})"
 class Site(BaseModel):
     campagne = models.ForeignKey(
         Campagne,
@@ -283,3 +309,28 @@ class Vente(BaseModel):
 
     def __str__(self):
         return f"Vente {self.conditionnement} ({self.quantite}) - {self.produit.nom}"
+
+
+class Promotion(BaseModel):
+    """Règle promotionnelle liée à une campagne de type PROMOTIONS."""
+
+    class TypePromotion(models.TextChoices):
+        OFFERT = "OFFERT", "Produit offert"
+        GAGNE  = "GAGNE",  "À gagner / Bon cadeau"
+
+    campagne = models.ForeignKey(
+        Campagne, on_delete=models.CASCADE, related_name='promotions'
+    )
+    type_promotion = models.CharField(
+        max_length=10, choices=TypePromotion.choices, default=TypePromotion.OFFERT
+    )
+    quantite_requise = models.PositiveIntegerField(
+        default=1, help_text="Nombre de produits à acheter pour déclencher la promotion"
+    )
+    recompense_description = models.CharField(
+        max_length=255, help_text="Ex: 1 produit offert, bon cadeau Fnac…"
+    )
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"Acheter {self.quantite_requise} → {self.recompense_description} ({self.campagne.nom})"
