@@ -9,7 +9,7 @@ from btl.models import RemoteUser
 from btl.permissions import IsAdmin
 
 
-@method_decorator(csrf_exempt, name="dispatch")  # PROTECTION CSRF DÉSACTIVÉE ICI
+@method_decorator(csrf_exempt, name="dispatch")
 class SetupAdminView(APIView):
     """
     GET  /api/auth/setup/ — Vérifie si un premier admin existe (public).
@@ -17,25 +17,28 @@ class SetupAdminView(APIView):
                             • Aucune auth requise si aucun admin n'existe encore.
                             • Auth + rôle Admin requis si un admin existe déjà.
     """
-    authentication_classes = []  # Permet de recevoir des requêtes sans Token JWT obligatoire
-    permission_classes = [AllowAny] # Donne une permission par défaut
+    # CORRECTION CRITIQUE : On utilise (None,) ou on surcharge pour bloquer SessionAuthentication 
+    # qui générait l'erreur 403 CSRF en arrière-plan.
+    authentication_classes = ()  
+    permission_classes = [AllowAny]
 
     def get_permissions(self):
         if self.request.method == "GET":
             return [AllowAny()]
         
-        # Utilisation de all_objects pour vérifier l'existence globale des admins
-        admin_exists = RemoteUser.all_objects.filter(role=RemoteUser.Roles.ADMIN).exists()
+        # CORRECTION : On utilise .objects au lieu de .all_objects pour éviter 
+        # qu'un admin supprimé logiquement ne bloque la configuration initiale.
+        admin_exists = RemoteUser.objects.filter(role=RemoteUser.Roles.ADMIN).exists()
         if not admin_exists:
             return [AllowAny()]
         
-        # Si un admin existe, on réactive la sécurité habituelle
+        # Si un admin existe déjà, on réactive l'authentification JWT requise pour IsAdmin
         from rest_framework_simplejwt.authentication import JWTAuthentication
         self.request.authenticator = JWTAuthentication()
         return [IsAdmin()]
 
     def get(self, request):
-        admin_exists = RemoteUser.all_objects.filter(role=RemoteUser.Roles.ADMIN).exists()
+        admin_exists = RemoteUser.objects.filter(role=RemoteUser.Roles.ADMIN).exists()
         return Response({"setup_required": not admin_exists})
 
     def post(self, request):
