@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from btl.models import Campagne
+from btl.models import Campagne, Promotion
 from .TeamSerializer import TeamMemberSerializer
 
 
@@ -11,17 +11,32 @@ class CampagneListSerializer(serializers.ModelSerializer):
     nb_sites              = serializers.IntegerField(source='sites.count',       read_only=True)
     nb_hotesses           = serializers.IntegerField(source='hotesses.count',    read_only=True)
     nb_superviseurs       = serializers.IntegerField(source='superviseurs.count', read_only=True)
+    
+    # Versions textuelles pour le frontend
+    type_campagne_display = serializers.CharField(source='get_type_campagne_display', read_only=True)
+    type_recompense_display = serializers.CharField(source='get_type_recompense_display', read_only=True)
 
     class Meta:
         model = Campagne
         fields = [
             'id', 'nom', 'entreprise', 'entreprise_nom',
             'couleur_primaire', 'couleur_secondaire', 'logo_url',
+            'type_campagne', 'type_campagne_display',        # Ajouté
+            'type_recompense', 'type_recompense_display',    # Ajouté
             'date_debut', 'date_fin', 'description',
             'objectif_degustations', 'objectif_ventes',
             'nb_sites', 'nb_hotesses', 'nb_superviseurs', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
+
+
+class PromotionInlineSerializer(serializers.ModelSerializer):
+    type_promotion_display = serializers.CharField(source='get_type_promotion_display', read_only=True)
+
+    class Meta:
+        model = Promotion
+        fields = ['id', 'type_promotion', 'type_promotion_display',
+                  'quantite_requise', 'recompense_description', 'is_active']
 
 
 class CampagneDetailSerializer(serializers.ModelSerializer):
@@ -31,15 +46,21 @@ class CampagneDetailSerializer(serializers.ModelSerializer):
     logo_url           = serializers.CharField(source='entreprise.logo_url',          read_only=True, allow_null=True)
     superviseurs       = TeamMemberSerializer(many=True, read_only=True)
     hotesses           = TeamMemberSerializer(many=True, read_only=True)
+    promotions         = PromotionInlineSerializer(many=True, read_only=True)
+
+    type_campagne_display = serializers.CharField(source='get_type_campagne_display', read_only=True)
+    type_recompense_display = serializers.CharField(source='get_type_recompense_display', read_only=True)
 
     class Meta:
         model = Campagne
         fields = [
             'id', 'nom', 'entreprise', 'entreprise_nom',
             'couleur_primaire', 'couleur_secondaire', 'logo_url',
+            'type_campagne', 'type_campagne_display',
+            'type_recompense', 'type_recompense_display',
             'date_debut', 'date_fin', 'description',
             'objectif_degustations', 'objectif_ventes',
-            'superviseurs', 'hotesses', 'created_at'
+            'superviseurs', 'hotesses', 'promotions', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
 
@@ -49,7 +70,11 @@ class CampagneWriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Campagne
-        fields = ['id', 'nom', 'entreprise', 'date_debut', 'date_fin', 'description', 'objectif_degustations', 'objectif_ventes']
+        fields = [
+            'id', 'nom', 'entreprise', 'date_debut', 'date_fin', 'description', 
+            'type_campagne', 'type_recompense', # Ajoutés pour permettre la saisie Admin
+            'objectif_degustations', 'objectif_ventes'
+        ]
         read_only_fields = ['id']
 
     def validate(self, data):

@@ -89,11 +89,13 @@ class RemoteUserViewSet(viewsets.ModelViewSet):
 
         email_sent = False
         try:
-            envoyer_email_credentials_terrain(user, password)
+            # On appelle la tâche Celery pour le staff terrain
+            from btl.tasks import task_envoyer_email_credentials_terrain
+            task_envoyer_email_credentials_terrain.delay(user.id, password)
             email_sent = True
         except Exception:
             logger.exception(
-                "Échec envoi e-mail d'identifiants pour %s (%s)",
+                "Échec de la mise en file d'attente Celery pour %s (%s)",
                 user.name,
                 user.email,
             )

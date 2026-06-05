@@ -45,7 +45,7 @@ class VenteViewSet(viewsets.ReadOnlyModelViewSet):
         """
         GET /api/ventes/stats/
         Statistiques de ventes agrégées pour le contexte de l'utilisateur connecté.
-        Filtres optionnels : ?campagne_id=<uuid>  ?site_id=<uuid>
+        Prend désormais en compte si la campagne est uniquement en mode Dégustation.
         """
         qs = self.get_queryset()
 
@@ -53,9 +53,26 @@ class VenteViewSet(viewsets.ReadOnlyModelViewSet):
         site_id = request.query_params.get('site_id')
 
         if campagne_id:
+            # Sécurité additionnelle : Si la campagne est uniquement DEGUSTATION, pas de statistiques de ventes
+            try:
+                campagne = Campagne.objects.get(id=campagne_id)
+                if campagne.type_campagne == Campagne.TypeCampagne.DEGUSTATION:
+                    return Response({
+                        'total_ventes': 0,
+                        'total_unites_vendues': 0,
+                        'ventes_en_pack': 0,
+                        'ventes_a_lunite': 0,
+                        'message': "Cette campagne est configurée en mode Dégustation uniquement."
+                    })
+            except Campagne.DoesNotExist:
+                pass
             qs = qs.filter(site__campagne__id=campagne_id)
+            
         if site_id:
             qs = qs.filter(site__id=site_id)
+
+        # On exclut également globalement les ventes rattachées à des campagnes purement dégustation
+        qs = qs.exclude(site__campagne__type_campagne=Campagne.TypeCampagne.DEGUSTATION)
 
         totaux = qs.aggregate(
             total_ventes=Count('id'),

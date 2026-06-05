@@ -31,6 +31,7 @@ from btl.views.ViewSites import SiteViewSet
 from btl.views.ViewTasting import DegustationViewSet
 from btl.views.ViewProducts import VenteViewSet
 from btl.views.ViewSetup import SetupAdminView
+from btl.views.ViewPromotions import PromotionViewSet
 
 router = DefaultRouter()
 router.register(r'users', RemoteUserViewSet, basename='user')
@@ -39,6 +40,7 @@ router.register(r'campagnes', CampagneViewSet, basename='campagne')
 router.register(r'sites', SiteViewSet, basename='site')
 router.register(r'degustations', DegustationViewSet, basename='degustation')
 router.register(r'ventes', VenteViewSet, basename='vente')
+router.register(r'promotions', PromotionViewSet, basename='promotion')
 
 urlpatterns = [
     path("admin/", admin.site.urls),
