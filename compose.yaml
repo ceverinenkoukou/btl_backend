@@ -1,58 +1,61 @@
-
 services:
   # --- Service Base de Données ---
   btl-db:
     image: postgres:15-alpine
     container_name: btl-db
     environment:
-      # Lit les variables standard de l'image Postgres depuis .env
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
-      # Port Hôte (unique) -> Port Conteneur (fixe)
-      - "${DB_PORT}:5432"
+      # CORRECTION : Utilisation de POSTGRES_PORT défini à 5432 dans ton .env
+      - "${POSTGRES_PORT}:5432"
     networks:
       - btl-network
     volumes:
       - btl-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-btl_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
-  # --- Service Backend (Django/FastAPI) ---
+  # --- Service Redis (Le Broker pour Celery) ---
+  btl-redis:
+    image: redis:7-alpine
+    container_name: btl-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - btl-network
+    restart: unless-stopped
+
+  # --- Service Backend (Django) ---
   btl-backend:
     build:
       context: .
       dockerfile: Dockerfile
-    # On donne un nom d'image local pour que Docker puisse la réutiliser
     image: btl-app-base:latest
     container_name: btl-backend
     env_file: .env
     environment:
       - POSTGRES_HOST=btl-db
     ports:
-      - "${BACKEND_PORT}:8000"
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
     depends_on:
       btl-db:
         condition: service_healthy
     networks:
       - btl-network
-    volumes:
-      - .:/app
-      - btl-media-data:/app/media
-      - btl-static-data:/app/staticfiles
-    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/btl/health/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8003/api/btl/health/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-  #Interface de gestion de PGadmin
+
+  # --- Interface de gestion PGadmin ---
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: pgadmin
@@ -60,7 +63,8 @@ services:
       - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
       - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
     ports:
-      - "${PGADMIN_PORT}:80"
+      # CORRECTION : Ajout de l'underscore pour correspondre à PG_ADMIN_PORT de ton .env
+      - "${PG_ADMIN_PORT}:80"
     networks:
       - btl-network
     depends_on:
@@ -70,7 +74,6 @@ services:
 
   # --- CELERY WORKER ---
   btl-worker:
-    # Au lieu de recompiler (build: .), on lui dit d'utiliser DIRECTEMENT l'image du backend !
     image: btl-app-base:latest
     container_name: btl-worker
     env_file: .env
@@ -87,8 +90,10 @@ services:
         condition: service_started
       btl-db:
         condition: service_healthy
-    restart: unless-stopped
-# --- Réseau Interne---
+      btl-redis:
+        condition: service_started # CORRECTION : Ajout de l'espace après les deux-points
+
+# --- Réseau Interne ---
 networks:
   btl-network:
     driver: bridge
@@ -101,4 +106,3 @@ volumes:
     name: btl-media-data
   btl-static-data:
     name: btl-static-data
-
