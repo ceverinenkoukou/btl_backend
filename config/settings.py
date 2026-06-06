@@ -152,3 +152,5 @@ DEFAULT_FROM_EMAIL = normalize_from_email(
     config('DEFAULT_FROM_EMAIL', default='MHedia BTL <no-reply@mhedia-ga.com>')
 )
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+
+CELERY_TASK_ALWAYS_EAGER = config('CELERY_TASK_ALWAYS_EAGER', default=False, cast=bool)
