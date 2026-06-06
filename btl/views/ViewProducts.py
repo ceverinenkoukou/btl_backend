@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from btl.models import Vente, RemoteUser
+from btl.models import Vente, RemoteUser, Campagne
 from btl.permissions import IsPasswordChanged
 from btl.serializers.VenteSerializer import VenteSerializer
 
