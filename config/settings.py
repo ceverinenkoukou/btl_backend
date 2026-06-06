@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
@@ -68,7 +69,10 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=config('DATABASE_URL', default='postgres://postgres:postgres@localhost:5432/btl_db_local')
+        # Si DATABASE_URL est vide (comme en local), on reconstruit l'accès avec les variables séparées
+        default=f"postgres://{os.getenv('POSTGRES_USER', 'postgres')}:{os.getenv('POSTGRES_PASSWORD', 'postgres')}@{os.getenv('POSTGRES_HOST', 'localhost')}:{os.getenv('POSTGRES_PORT', '5432')}/{os.getenv('POSTGRES_DB', 'btl_db')}",
+        conn_max_age=600,
+        ssl_require=not os.getenv('DEBUG', 'False') == 'True' # Active SSL uniquement en production (sur Railway)
     )
 }
 
