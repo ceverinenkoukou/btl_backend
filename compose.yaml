@@ -72,26 +72,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # --- CELERY WORKER ---
-  btl-worker:
-    image: btl-app-base:latest
-    container_name: btl-worker
-    env_file: .env
-    environment:
-      - POSTGRES_HOST=btl-db
-    command: >
-      sh -c "celery -A config worker --loglevel=info"
-    networks:
-      - btl-network
-    volumes:
-      - .:/app
-    depends_on:
-      btl-backend:
-        condition: service_started
-      btl-db:
-        condition: service_healthy
-      btl-redis:
-        condition: service_started # CORRECTION : Ajout de l'espace après les deux-points
+  
 
 # --- Réseau Interne ---
 networks:
