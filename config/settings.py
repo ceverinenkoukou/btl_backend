@@ -133,7 +133,7 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# --- Configuration Email via API Gmail ---
+
 # Lit la clé JSON brute stockée sous forme de chaîne de caractères sur Railway
 GMAIL_API_CREDENTIALS = config('GMAIL_API_CREDENTIALS', default='')
 
@@ -149,7 +149,7 @@ else:
     EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 
 DEFAULT_FROM_EMAIL = normalize_from_email(
-    config('DEFAULT_FROM_EMAIL', default='MHedia BTL <contact@mhedia-ga.com>')
+    config('DEFAULT_FROM_EMAIL', default='MHédia BTL <contact@mhedia-ga.com>')
 )
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
