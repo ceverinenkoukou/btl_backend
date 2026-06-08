@@ -133,35 +133,23 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
+# --- Configuration Email ---
 
-# 1. On initialise toujours la variable à vide au scope global
-GMAIL_API_CREDENTIALS_DICT = {}
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 
-# 2. Lit la clé JSON brute stockée sous forme de chaîne de caractères sur Railway
-GMAIL_API_CREDENTIALS = config('GMAIL_API_CREDENTIALS', default='')
-
-if GMAIL_API_CREDENTIALS:
-    # 3. On extrait proprement le dictionnaire pour l'injecter là où le package le cherche
-    EMAIL_BACKEND = "gmailapi_backend.mail.GmailBackend"
-    
-    import json
-    try:
-        # On extrait proprement le dictionnaire pour l'injecter là où le package le cherche
-        GMAIL_API_CREDENTIALS_DICT = json.loads(GMAIL_API_CREDENTIALS)
-    except Exception:
-        GMAIL_API_CREDENTIALS_DICT = {}
-else:
-    # Fallback pour ton développement local (affiche les emails dans le terminal)
-    EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+if config('GMAIL_SMTP_USER', default=''):
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = 'smtp.gmail.com'
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = config('GMAIL_SMTP_USER')
+    EMAIL_HOST_PASSWORD = config('GMAIL_SMTP_PASSWORD')
 
 DEFAULT_FROM_EMAIL = normalize_from_email(
     config('DEFAULT_FROM_EMAIL', default='MHédia BTL <contact@mhedia-ga.com>')
 )
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
-
-# Nettoyage : On ne garde qu'une seule fois EMAIL_TIMEOUT à la fin
 EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
-
 
 # CELERY_TASK_ALWAYS_EAGER = config('CELERY_TASK_ALWAYS_EAGER', default=False, cast=bool)
 EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
