@@ -78,18 +78,12 @@ services:
     container_name: btl-celery
     command: celery -A config worker --loglevel=info
     env_file: .env
-    environment:
-      - POSTGRES_HOST=btl-db
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     depends_on:
       btl-db:
         condition: service_healthy
-      btl-redis:
-        condition: service_started
-    networks:
-      - btl-network
-    restart: unless-stopped
-
-  
 
 # --- Réseau Interne ---
 networks:
