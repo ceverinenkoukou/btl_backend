@@ -84,6 +84,8 @@ services:
     depends_on:
       btl-db:
         condition: service_healthy
+    networks:
+      - btl-network 
 
 # --- Réseau Interne ---
 networks:
