@@ -8,7 +8,7 @@ def normalize_from_email(value: str) -> str:
     """
     value = (value or "").strip()
     if not value:
-        return "MHedia BTL <no-reply@mhedia-ga.com>"
+        return "MHedia BTL <no-replyceverineelisee36@gmail.com.com>"
     if "<" in value and ">" in value:
         return value
     if "@" in value:

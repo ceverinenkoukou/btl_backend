@@ -4,7 +4,19 @@ from datetime import timedelta
 from decouple import config
 import dj_database_url
 
-from config.email_utils import normalize_from_email, normalize_smtp_password
+
+
+
+# Correction de l'import pour être robuste sur Vercel
+try:
+    from .email_utils import normalize_from_email, normalize_smtp_password
+except ImportError:
+    # Solution de repli si le fichier ne se charge pas correctement sur Vercel
+    def normalize_from_email(val): return val
+    def normalize_smtp_password(val): return val
+
+
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -46,6 +58,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -111,6 +124,11 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
+    
+    # AJOUTER CETTE CONFIGURATION POUR LIRE VOS CLÉS DU .ENV
+    'ALGORITHM': 'RS256',  # Requis car vous utilisez des paires de clés RSA (Asymétrique)
+    'PRIVATE_KEY': config('JWT_PRIVATE_KEY', default='').replace(r'\n', '\n'),
+    'PUBLIC_KEY': config('JWT_PUBLIC_KEY', default='').replace(r'\n', '\n'),
 }
 
 # --- CORS ---
@@ -145,11 +163,12 @@ if config('GMAIL_SMTP_USER', default=''):
     EMAIL_HOST_USER = config('GMAIL_SMTP_USER')
     EMAIL_HOST_PASSWORD = config('GMAIL_SMTP_PASSWORD')
 
+# MODIFICATION ICI : On utilise la variable du .env, et on change la valeur par défaut au cas où
 DEFAULT_FROM_EMAIL = normalize_from_email(
-    config('DEFAULT_FROM_EMAIL', default='MHédia BTL <contact@mhedia-ga.com>')
+    config('DEFAULT_FROM_EMAIL', default='MHédia BTL <votre_adresse_perso@gmail.com>')
 )
-FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
-EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
 
-# CELERY_TASK_ALWAYS_EAGER = config('CELERY_TASK_ALWAYS_EAGER', default=False, cast=bool)
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+
+# SÉCURITÉ : Supprimez la deuxième ligne EMAIL_TIMEOUT qui fait doublon tout en bas
 EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
