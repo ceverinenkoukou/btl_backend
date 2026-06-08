@@ -124,11 +124,6 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
-    
-    # AJOUTER CETTE CONFIGURATION POUR LIRE VOS CLÉS RSA depuis les variables d'environnement
-    'ALGORITHM': 'RS256',  # Indique l'utilisation de vos clés RSA
-    'PRIVATE_KEY': config('JWT_PRIVATE_KEY', default='').replace(r'\n', '\n'),
-    'PUBLIC_KEY': config('JWT_PUBLIC_KEY', default='').replace(r'\n', '\n'),
 }
 
 # --- CORS ---
