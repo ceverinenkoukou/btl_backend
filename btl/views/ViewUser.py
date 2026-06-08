@@ -89,9 +89,9 @@ class RemoteUserViewSet(viewsets.ModelViewSet):
 
         email_sent = False
         try:
-            # On appelle la tâche Celery pour le staff terrain
-            from btl.tasks import task_envoyer_email_credentials_terrain
-            task_envoyer_email_credentials_terrain.delay(user.id, password)
+            # Import direct absolu
+            import btl.tasks as btl_tasks
+            btl_tasks.task_envoyer_email_credentials_terrain.delay(user.id, password)
             email_sent = True
         except Exception:
             logger.exception(
@@ -99,7 +99,6 @@ class RemoteUserViewSet(viewsets.ModelViewSet):
                 user.name,
                 user.email,
             )
-
         data = RemoteUserSerializer(user).data
         data['email_sent'] = email_sent
         return Response(data, status=status.HTTP_201_CREATED)
