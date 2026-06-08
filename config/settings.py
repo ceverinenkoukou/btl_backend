@@ -167,3 +167,7 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 
 # SÉCURITÉ : Supprimez la deuxième ligne EMAIL_TIMEOUT qui fait doublon tout en bas
 EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
+
+CELERY_TASK_ALWAYS_EAGER = True
+
+
