@@ -134,16 +134,22 @@ CORS_ALLOW_HEADERS = [
 ]
 
 
-# Lit la clé JSON brute stockée sous forme de chaîne de caractères sur Railway
+# 1. On initialise toujours la variable à vide au scope global
+GMAIL_API_CREDENTIALS_DICT = {}
+
+# 2. Lit la clé JSON brute stockée sous forme de chaîne de caractères sur Railway
 GMAIL_API_CREDENTIALS = config('GMAIL_API_CREDENTIALS', default='')
 
 if GMAIL_API_CREDENTIALS:
-    # On utilise l'API Google en HTTP (Port 443 sécurisé - Aucun blocage sur Railway)
+    # Utilisation du backend standard sécurisé
     EMAIL_BACKEND = "django_gmailapi_backend.backends.GmailAPIBackend"
     
-    # Le package django-gmailapi-backend requiert la conversion de la chaîne en dictionnaire JSON
     import json
-    GMAIL_API_CREDENTIALS_DICT = json.loads(GMAIL_API_CREDENTIALS)
+    try:
+        # On extrait proprement le dictionnaire pour l'injecter là où le package le cherche
+        GMAIL_API_CREDENTIALS_DICT = json.loads(GMAIL_API_CREDENTIALS)
+    except Exception:
+        GMAIL_API_CREDENTIALS_DICT = {}
 else:
     # Fallback pour ton développement local (affiche les emails dans le terminal)
     EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
@@ -152,6 +158,8 @@ DEFAULT_FROM_EMAIL = normalize_from_email(
     config('DEFAULT_FROM_EMAIL', default='MHédia BTL <contact@mhedia-ga.com>')
 )
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+
+# Nettoyage : On ne garde qu'une seule fois EMAIL_TIMEOUT à la fin
 EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
 
 
