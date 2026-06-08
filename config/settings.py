@@ -142,7 +142,7 @@ GMAIL_API_CREDENTIALS = config('GMAIL_API_CREDENTIALS', default='')
 
 if GMAIL_API_CREDENTIALS:
     # 3. On extrait proprement le dictionnaire pour l'injecter là où le package le cherche
-    EMAIL_BACKEND = "gmailapi_backend.backends.GmailAPIBackend"
+    EMAIL_BACKEND = "gmailapi_backend.mail.GmailBackend"
     
     import json
     try:

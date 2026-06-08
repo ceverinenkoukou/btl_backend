@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copier et installer les dépendances Python
 COPY requirements.txt .
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt django-gmailapi-backend requests==2.33.0
+    pip install --no-cache-dir -r requirements.txt 
 
 # ---------------------------------------------------
 
