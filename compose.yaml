@@ -72,6 +72,23 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+# --- Service Celery Worker ---
+  btl-celery:
+    image: btl-app-base:latest
+    container_name: btl-celery
+    command: celery -A config worker --loglevel=info
+    env_file: .env
+    environment:
+      - POSTGRES_HOST=btl-db
+    depends_on:
+      btl-db:
+        condition: service_healthy
+      btl-redis:
+        condition: service_started
+    networks:
+      - btl-network
+    restart: unless-stopped
+
   
 
 # --- Réseau Interne ---

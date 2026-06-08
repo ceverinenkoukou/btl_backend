@@ -141,8 +141,7 @@ GMAIL_API_CREDENTIALS_DICT = {}
 GMAIL_API_CREDENTIALS = config('GMAIL_API_CREDENTIALS', default='')
 
 if GMAIL_API_CREDENTIALS:
-    # Utilisation du backend standard sécurisé
-    EMAIL_BACKEND = "django_gmailapi_backend.backends.GmailAPIBackend"
+    EMAIL_BACKEND = "gmailapi_backend.backends.GmailAPIBackend"
     
     import json
     try:
