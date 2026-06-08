@@ -133,33 +133,25 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# --- Email ---
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = normalize_smtp_password(config('EMAIL_HOST_PASSWORD', default=''))
+# --- Configuration Email via API Gmail ---
+# Lit la clé JSON brute stockée sous forme de chaîne de caractères sur Railway
+GMAIL_API_CREDENTIALS = config('GMAIL_API_CREDENTIALS', default='')
 
-_default_backend = config(
-    'EMAIL_BACKEND',
-    default='django.core.mail.backends.console.EmailBackend',
-)
-
-if EMAIL_HOST_USER:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+if GMAIL_API_CREDENTIALS:
+    # On utilise l'API Google en HTTP (Port 443 sécurisé - Aucun blocage sur Railway)
+    EMAIL_BACKEND = "django_gmailapi_backend.backends.GmailAPIBackend"
+    
+    # Le package django-gmailapi-backend requiert la conversion de la chaîne en dictionnaire JSON
+    import json
+    GMAIL_API_CREDENTIALS_DICT = json.loads(GMAIL_API_CREDENTIALS)
 else:
-    EMAIL_BACKEND = _default_backend
-
-EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
-EMAIL_PORT = config('EMAIL_PORT', default=465, cast=int)
-
-# CORRECTION : SSL pour le port 465, TLS pour le port 587
-EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=True, cast=bool)
-EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=False, cast=bool)
+    # Fallback pour ton développement local (affiche les emails dans le terminal)
+    EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 
 DEFAULT_FROM_EMAIL = normalize_from_email(
-    config('DEFAULT_FROM_EMAIL', default='MHedia BTL <no-reply@mhedia-ga.com>')
+    config('DEFAULT_FROM_EMAIL', default='MHedia BTL <contact@mhedia-ga.com>')
 )
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
-
-# SÉCURITÉ : Abandonne après 10 secondes si les serveurs de messagerie ne répondent pas
 EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
 
 
