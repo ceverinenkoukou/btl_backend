@@ -8,7 +8,6 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
-      # CORRECTION : Utilisation de POSTGRES_PORT défini à 5432 dans ton .env
       - "${POSTGRES_PORT}:5432"
     networks:
       - btl-network
@@ -46,8 +45,13 @@ services:
     depends_on:
       btl-db:
         condition: service_healthy
+      btl-redis:                        # ✅ CORRECTION 1
+        condition: service_started
     networks:
       - btl-network
+    volumes:
+      - btl-media-data:/app/media       # ✅ CORRECTION 2
+      - btl-static-data:/app/static     # ✅ CORRECTION 2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8003/api/btl/health/"]
       interval: 30s
@@ -63,7 +67,6 @@ services:
       - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
       - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
     ports:
-      # CORRECTION : Ajout de l'underscore pour correspondre à PG_ADMIN_PORT de ton .env
       - "${PG_ADMIN_PORT}:80"
     networks:
       - btl-network
@@ -72,7 +75,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-# --- Service Celery Worker ---
+  # --- Service Celery Worker ---
   btl-celery:
     image: btl-app-base:latest
     container_name: btl-celery
@@ -84,8 +87,10 @@ services:
     depends_on:
       btl-db:
         condition: service_healthy
+      btl-redis:                        # ✅ CORRECTION 3
+        condition: service_started
     networks:
-      - btl-network 
+      - btl-network
 
 # --- Réseau Interne ---
 networks:
