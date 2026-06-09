@@ -146,23 +146,21 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
+
 # --- Configuration Email ---
+RESEND_API_KEY = config('RESEND_API_KEY', default='')
 
-EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.resend.com'
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
+EMAIL_HOST_USER = 'resend'
+EMAIL_HOST_PASSWORD = config('RESEND_API_KEY', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@mhediabtl-ga.com')
 
-if config('GMAIL_SMTP_USER', default=''):
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = 'smtp.gmail.com'
-    EMAIL_PORT = 465
-    EMAIL_USE_TLS = False
-    EMAIL_USE_SSL = True
-    EMAIL_HOST_USER = config('GMAIL_SMTP_USER')
-    EMAIL_HOST_PASSWORD = config('GMAIL_SMTP_PASSWORD')
-
-# MODIFICATION ICI : On utilise la variable du .env, et on change la valeur par défaut au cas où
-DEFAULT_FROM_EMAIL = normalize_from_email(
-    config('DEFAULT_FROM_EMAIL', default='MHédia BTL <votre_adresse_perso@gmail.com>')
-)
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
 
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 
