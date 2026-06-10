@@ -4,10 +4,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q, Count, Sum, F
 
-from btl.models import Campagne, RemoteUser, Site, Degustation, Vente
+from btl.models import Campagne, RemoteUser, Site, Degustation, Vente, GainPromotion, Promotion
 from btl.permissions import IsAdmin, IsAdminOrReadOnly, IsPasswordChanged
 from btl.serializers import (
-    CampagneListSerializer, CampagneDetailSerializer, CampagneWriteSerializer
+    CampagneListSerializer, CampagneDetailSerializer, CampagneWriteSerializer,
+    GoodieSerializer
 )
 from btl.serializers.CampagneSerializer import ManageTeamSerializer
 from btl.services.email_service import envoyer_email_assignation_campagne
@@ -121,7 +122,8 @@ def rapport_sites(self, request, pk=None):
         # On extrait les types pour appliquer les règles métiers
         est_mode_degustation = campagne.type_campagne in (Campagne.TypeCampagne.DEGUSTATION, Campagne.TypeCampagne.DEGUSTATION_VENTE)
         est_mode_vente = campagne.type_campagne in (Campagne.TypeCampagne.VENTE, Campagne.TypeCampagne.DEGUSTATION_VENTE)
-        a_des_goodies = campagne.type_recompense == Campagne.TypeRecompense.GOODIES
+        a_des_goodies    = campagne.type_recompense == Campagne.TypeRecompense.GOODIES
+        a_des_promotions = campagne.type_recompense == Campagne.TypeRecompense.PROMOTIONS
 
         for site in campagne.sites.all().prefetch_related(
             'stocks_goodies__goodie', 'hotesses', 'superviseurs'
@@ -194,6 +196,31 @@ def rapport_sites(self, request, pk=None):
                     })
 
             total_goodies_distribues += site_goodies_distribues
+
+            # 5. Statistiques des règles promotionnelles par site
+            promos_list = []
+            total_gains_site = 0
+            total_produits_site = 0
+
+            if a_des_promotions:
+                promotions_campagne = campagne.promotions.filter(is_active=True)
+                for promo in promotions_campagne:
+                    gains_qs = GainPromotion.objects.filter(
+                        promotion=promo, site=site
+                    )
+                    gains_count = gains_qs.count()
+                    produits_count = gains_count * promo.quantite_requise
+                    total_gains_site += gains_count
+                    total_produits_site += produits_count
+                    promos_list.append({
+                        'promotion_id': str(promo.id),
+                        'recompense_description': promo.recompense_description,
+                        'type_promotion': promo.type_promotion,
+                        'quantite_requise': promo.quantite_requise,
+                        'gains_count': gains_count,
+                        'produits_concernes': produits_count,
+                    })
+
             taux_conversion = (
                 round((acheteurs_count / degustations_count) * 100)
                 if degustations_count and est_mode_degustation else 0
@@ -231,6 +258,13 @@ def rapport_sites(self, request, pk=None):
                     'goodies_distribues_total': site_goodies_distribues,
                 })
 
+            if a_des_promotions:
+                payload_site.update({
+                    'promotions_stats': promos_list,
+                    'gains_total': total_gains_site,
+                    'produits_concernes_total': total_produits_site,
+                })
+
             sites_payload.append(payload_site)
 
         # Totaux généraux de la réponse
@@ -242,6 +276,10 @@ def rapport_sites(self, request, pk=None):
         if a_des_goodies:
             totaux['goodies_distribues'] = total_goodies_distribues
 
+        if a_des_promotions:
+            totaux['gains_promotions'] = sum(s.get('gains_total', 0) for s in sites_payload)
+            totaux['produits_concernes'] = sum(s.get('produits_concernes_total', 0) for s in sites_payload)
+
         return Response({
             'campagne_id': str(campagne.id),
             'campagne_nom': campagne.nom,
@@ -250,3 +288,14 @@ def rapport_sites(self, request, pk=None):
             'sites': sites_payload,
             'totaux': totaux,
         })
+
+@action(detail=True, methods=['get'], url_path='goodies')
+def goodies(self, request, pk=None):
+        """
+        GET /api/campagnes/{id}/goodies/
+        Retourne la liste des goodies associés à cette campagne.
+        """
+        campagne = self.get_object()
+        goodies = campagne.goodies.select_related('entreprise').prefetch_related('stocks_sites')
+        serializer = GoodieSerializer(goodies, many=True)
+        return Response(serializer.data)

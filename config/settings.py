@@ -7,13 +7,7 @@ import dj_database_url
 
 
 
-# Correction de l'import pour être robuste sur Vercel
-try:
-    from .email_utils import normalize_from_email, normalize_smtp_password
-except ImportError:
-    # Solution de repli si le fichier ne se charge pas correctement sur Vercel
-    def normalize_from_email(val): return val
-    def normalize_smtp_password(val): return val
+
 
 
 
@@ -50,7 +44,6 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -80,12 +73,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
+# Dans settings.py, remplacez le bloc DATABASES par :
+
+_debug = config('DEBUG', default=True, cast=bool)
+
 DATABASES = {
     'default': dj_database_url.config(
-        # Si DATABASE_URL est vide (comme en local), on reconstruit l'accès avec les variables séparées
         default=f"postgres://{os.getenv('POSTGRES_USER', 'postgres')}:{os.getenv('POSTGRES_PASSWORD', 'postgres')}@{os.getenv('POSTGRES_HOST', 'localhost')}:{os.getenv('POSTGRES_PORT', '5432')}/{os.getenv('POSTGRES_DB', 'btl_db')}",
         conn_max_age=600,
-        ssl_require=not os.getenv('DEBUG', 'False') == 'True' # Active SSL uniquement en production (sur Railway)
+        ssl_require=not _debug,  # False en local (DEBUG=True), True en prod (DEBUG=False)
     )
 }
 
@@ -154,8 +150,6 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
 
 
-# SÉCURITÉ : Supprimez la deuxième ligne EMAIL_TIMEOUT qui fait doublon tout en bas
-EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
 
 # CELERY_TASK_ALWAYS_EAGER = True
 # CELERY_TASK_EAGER_PROPAGATES = True
