@@ -7,3 +7,11 @@ from .TeamSerializer import TeamMemberSerializer
 from .DegustationSerializer import DegustationSerializer
 from .VenteSerializer import VenteSerializer, VenteLightSerializer
 from .PromotionSerializer import PromotionSerializer
+from .GoodieSerializer import (
+    GoodieSerializer,
+    GoodieDetailSerializer,
+    GoodieCreateSerializer,
+    GoodieUpdateSerializer,
+    StockGoodieSiteSerializer,
+    AllouerGoodieSerializer,
+)

@@ -123,11 +123,19 @@ class Produit(BaseModel):
 
 class Goodie(BaseModel):
     entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name='goodies')
+    campagne = models.ForeignKey(
+        'Campagne',
+        on_delete=models.CASCADE,
+        related_name='goodies',
+        null=True,
+        blank=True
+    )
     nom = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.nom} ({self.entreprise.nom_commercial})"
+        campagne_str = f" - {self.campagne.nom}" if self.campagne else ""
+        return f"{self.nom} ({self.entreprise.nom_commercial}{campagne_str})"
 
 
 class Campagne(BaseModel):
@@ -271,8 +279,8 @@ class Degustation(BaseModel):
     tranche_age = models.CharField(max_length=20, choices=TrancheAge.choices)
 
     note_gout = models.PositiveSmallIntegerField(
-        help_text="Note entre 1 et 5",
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
+        help_text="Note entre 0 et 5 (0 = non évalué)",
+        validators=[MinValueValidator(0), MaxValueValidator(5)]
     )
     intention_achat = models.CharField(max_length=20, choices=IntentionAchat.choices)
 
@@ -334,3 +342,92 @@ class Promotion(BaseModel):
 
     def __str__(self):
         return f"Acheter {self.quantite_requise} → {self.recompense_description} ({self.campagne.nom})"
+    
+class GainGoodie(BaseModel):
+    degustation = models.OneToOneField(
+        Degustation, on_delete=models.CASCADE, related_name='gain_goodie', null=True, blank=True
+    )
+    promotion = models.ForeignKey(
+        Promotion, on_delete=models.CASCADE, related_name='gains_goodies', null=True, blank=True
+    )
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='gains_goodies')
+    goodie = models.ForeignKey(Goodie, on_delete=models.CASCADE, related_name='gains_sites')
+
+    def __str__(self):
+        source = self.degustation if self.degustation else self.promotion
+        return f"Gain de {self.goodie.nom} sur {self.site.nom} ({source})"
+
+    class Meta:
+        unique_together = ('degustation', 'site', 'goodie')
+
+    def distribuer(self, quantite=1):
+        stock = StockGoodieSite.objects.get(site=self.site, goodie=self.goodie)
+        stock.distribuer(quantite)
+        return stock
+
+    def distribuer_all(self):
+        stock = StockGoodieSite.objects.get(site=self.site, goodie=self.goodie)
+        stock.distribuer(stock.quantite_restante)
+        return stock
+
+    def get_quantite_restante(self):
+        stock = StockGoodieSite.objects.get(site=self.site, goodie=self.goodie)
+        return stock.quantite_restante
+
+    def get_quantite_initiale(self):
+        stock = StockGoodieSite.objects.get(site=self.site, goodie=self.goodie)
+        return stock.quantite_initiale
+
+    def get_quantite_total(self):
+        stock = StockGoodieSite.objects.get(site=self.site, goodie=self.goodie)
+        return stock.quantite_initiale
+
+class GainPromotion(BaseModel):
+    """
+    Enregistre chaque fois qu'une hôtesse déclenche une règle promotionnelle.
+    Sert de base pour les statistiques : gains par règle, par site, par hôtesse.
+    """
+    promotion = models.ForeignKey(
+        Promotion,
+        on_delete=models.CASCADE,
+        related_name='gains',
+        help_text="La règle promotionnelle déclenchée"
+    )
+    hotesse = models.ForeignKey(
+        RemoteUser,
+        on_delete=models.CASCADE,
+        related_name='gains_promotions',
+        limit_choices_to={'role': RemoteUser.Roles.HOTESSES}
+    )
+    site = models.ForeignKey(
+        'Site',
+        on_delete=models.CASCADE,
+        related_name='gains_promotions'
+    )
+    campagne = models.ForeignKey(
+        Campagne,
+        on_delete=models.CASCADE,
+        related_name='gains_promotions'
+    )
+    # Nombre de produits concernés par ce gain (ex: 9 bières pour 1 ticket)
+    quantite_produits_concernes = models.PositiveIntegerField(
+        default=1,
+        help_text="Nombre de produits achetés pour déclencher ce gain (= quantite_requise de la règle)"
+    )
+    nom_client = models.CharField(
+        max_length=150, blank=True, null=True,
+        help_text="Prénom du client bénéficiaire (optionnel)"
+    )
+    # Tranche d'âge du client (optionnel, pour statistiques)
+    tranche_age = models.CharField(
+        max_length=20, blank=True, null=True,
+        choices=Degustation.TrancheAge.choices,
+        help_text="Tranche d'âge du client (optionnel)"
+    )
+
+    def __str__(self):
+        return (
+            f"{self.hotesse.name} → {self.promotion.recompense_description} "
+            f"({self.quantite_produits_concernes} produits) sur {self.site.nom}"
+        )
+ 

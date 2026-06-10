@@ -10,7 +10,7 @@ class DegustationSerializer(serializers.ModelSerializer):
       - hotesse   → request.user
       - campagne  → site.campagne
 
-    Champs conditionnels (requis uniquement si a_achete=True) :
+    Champs optionnels pour créer une Vente si a_achete=True :
       - conditionnement
       - quantite
     """
@@ -38,6 +38,8 @@ class DegustationSerializer(serializers.ModelSerializer):
 
     # Expose la vente associée en lecture
     vente = serializers.SerializerMethodField()
+
+    note_gout = serializers.IntegerField(min_value=0, max_value=5)
 
     class Meta:
         model = Degustation
@@ -91,14 +93,6 @@ class DegustationSerializer(serializers.ModelSerializer):
             except Site.DoesNotExist:
                 pass
         return produit
-
-    def validate(self, data):
-        if data.get('a_achete'):
-            if not data.get('conditionnement'):
-                raise serializers.ValidationError(
-                    {"conditionnement": "Ce champ est requis si le client a acheté."}
-                )
-        return data
 
     # --- Création ---
 
