@@ -25,7 +25,7 @@ class RemoteUserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsPasswordChanged]
 
     def get_permissions(self):
-        if self.action in ('create', 'destroy', 'update', 'partial_update'):
+        if self.action in ('create', 'destroy', 'update', 'partial_update', 'resend_credentials'):
             return [IsAuthenticated(), IsAdmin()]
         # me + change_password doivent rester accessibles avant le changement de mdp provisoire
         if self.action in ('current_user', 'change_password'):
@@ -124,6 +124,37 @@ class RemoteUserViewSet(viewsets.ModelViewSet):
             user.save()
             return Response({"detail": "Mot de passe mis à jour avec succès."}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='resend-credentials',
+            permission_classes=[IsAuthenticated, IsAdmin])
+    def resend_credentials(self, request, pk=None):
+        """
+        POST /api/users/{id}/resend-credentials/
+        Génère un nouveau mot de passe aléatoire, le définit sur l'utilisateur
+        et renvoie l'e-mail avec les identifiants.
+        Réinitialise aussi is_password_changed à False.
+        """
+        user = self.get_object()
+        password = generer_mot_de_passe_provisoire()
+        user.set_password(password)
+        user.is_password_changed = False
+        user.save()
+
+        email_sent = False
+        try:
+            import btl.tasks as btl_tasks
+            btl_tasks.task_envoyer_email_credentials_terrain.delay(user.id, password)
+            email_sent = True
+        except Exception:
+            logger.exception(
+                "Échec de la mise en file d'attente pour renvoyer les identifiants à %s",
+                user.email,
+            )
+
+        return Response(
+            {"detail": f"Identifiants régénérés et envoyés à {user.email}.", "email_sent": email_sent},
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=False, methods=['get'], url_path='terrain-staff',
             permission_classes=[IsAuthenticated, IsPasswordChanged])
