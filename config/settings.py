@@ -156,8 +156,9 @@ EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
 # CELERY_TASK_EAGER_PROPAGATES = True
 
 # --- Celery ---
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+_redis_url = config('REDIS_URL', default='redis://localhost:6379/0')
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://btl-redis:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://btl-redis:6379/0")
 CELERY_TIMEZONE = 'Africa/Libreville'
 
 CELERY_BEAT_SCHEDULE = {
