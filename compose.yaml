@@ -1,5 +1,6 @@
 services:
-  # --- Service Base de Données ---
+
+  # ── Base de Données ──────────────────────────────────────
   btl-db:
     image: postgres:15-alpine
     container_name: btl-db
@@ -8,19 +9,20 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     networks:
       - btl-network
     volumes:
       - btl-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-btl_db}"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
     restart: unless-stopped
 
-  # --- Service Redis (Le Broker pour Celery) ---
+  # ── Redis ────────────────────────────────────────────────
   btl-redis:
     image: redis:7-alpine
     container_name: btl-redis
@@ -28,9 +30,15 @@ services:
       - "6379:6379"
     networks:
       - btl-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
     restart: unless-stopped
 
-  # --- Service Backend (Django) ---
+  # ── Backend Django (migrations + gunicorn) ───────────────
   btl-backend:
     build:
       context: .
@@ -40,26 +48,31 @@ services:
     env_file: .env
     environment:
       - POSTGRES_HOST=btl-db
+      - CELERY_BROKER_URL=redis://btl-redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://btl-redis:6379/0
+      - SKIP_MIGRATE=false   # ← ce service applique les migrations
     ports:
-      - "${BACKEND_PORT}:${BACKEND_PORT}"
+      - "${BACKEND_PORT:-8003}:${BACKEND_PORT:-8003}"
     depends_on:
       btl-db:
         condition: service_healthy
-      btl-redis:                        # ✅ CORRECTION 1
-        condition: service_started
+      btl-redis:
+        condition: service_healthy
     networks:
       - btl-network
     volumes:
-      - btl-media-data:/app/media       # ✅ CORRECTION 2
-      - btl-static-data:/app/static     # ✅ CORRECTION 2
+      - .:/app
+      - btl-media-data:/app/media
+      - btl-static-data:/app/static
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8003/api/btl/health/"]
-      interval: 30s
+      test: ["CMD", "curl", "-f", "http://localhost:${BACKEND_PORT:-8003}/api/btl/health/"]
+      interval: 15s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
-  # --- Interface de gestion PGadmin ---
+  # ── PGAdmin ──────────────────────────────────────────────
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: pgadmin
@@ -67,7 +80,7 @@ services:
       - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
       - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
     ports:
-      - "${PG_ADMIN_PORT}:80"
+      - "${PG_ADMIN_PORT:-8011}:80"
     networks:
       - btl-network
     depends_on:
@@ -75,14 +88,17 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # --- Service Celery Worker ---# --- Service Celery Worker ---
+  # ── Celery Worker ────────────────────────────────────────
   btl-celery:
     image: btl-app-base:latest
     container_name: btl-celery
-    # ─── AJOUT DE CETTE LIGNE POUR OUTREPASSER LE SCRIPT D'ENTRYPOINT DE MIGRATION ───
-    entrypoint: [] 
-    command: celery -A config worker --loglevel=info
     env_file: .env
+    environment:
+      - POSTGRES_HOST=btl-db
+      - CELERY_BROKER_URL=redis://btl-redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://btl-redis:6379/0
+      - SKIP_MIGRATE=true    # ← le worker ne migre pas
+    command: celery -A config worker --loglevel=info --concurrency=2
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -90,18 +106,39 @@ services:
       btl-db:
         condition: service_healthy
       btl-redis:
-        condition: service_started
-      # ─── AJOUTER LA DEPENDANCE SUR LE BACKEND POUR QU'IL ATTENDE LA FIN DES MIGRATIONS ───
+        condition: service_healthy
       btl-backend:
+        condition: service_healthy   # attend que les migrations soient faites
+    networks:
+      - btl-network
+    restart: unless-stopped
+
+  # ── Celery Beat (tâches planifiées — rapports 23h) ───────
+  btl-celery-beat:
+    image: btl-app-base:latest
+    container_name: btl-celery-beat
+    env_file: .env
+    environment:
+      - POSTGRES_HOST=btl-db
+      - CELERY_BROKER_URL=redis://btl-redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://btl-redis:6379/0
+      - SKIP_MIGRATE=true    # ← le beat ne migre pas
+    command: celery -A config beat --loglevel=info
+    depends_on:
+      btl-backend:
+        condition: service_healthy
+      btl-redis:
         condition: service_healthy
     networks:
       - btl-network
-# --- Réseau Interne ---
+    restart: unless-stopped
+
+# ── Réseau ───────────────────────────────────────────────
 networks:
   btl-network:
     driver: bridge
 
-# --- Volumes Persistants ---
+# ── Volumes ──────────────────────────────────────────────
 volumes:
   btl-postgres-data:
     name: btl-postgres-data

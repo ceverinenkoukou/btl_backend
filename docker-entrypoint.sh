@@ -1,39 +1,86 @@
 #!/bin/bash
 set -e
 
-echo "Attente de la base de données PostgreSQL..."
+echo "╔══════════════════════════════════════════╗"
+echo "║       BTL — Démarrage du container       ║"
+echo "╚══════════════════════════════════════════╝"
 
-# Si on est sur Railway (Production), on extrait l'hôte pour le tester proprement
+# ─────────────────────────────────────────────
+# 1. Attente PostgreSQL
+# ─────────────────────────────────────────────
+echo "⏳ Attente de PostgreSQL..."
+
 if [ -n "$DATABASE_URL" ]; then
-  # Cette commande magique extrait proprement 'postgres.railway.internal' de ton URL
+  # Production Railway : extraire l'hôte depuis DATABASE_URL
   DB_HOST=$(echo "$DATABASE_URL" | sed -e 's|.*@||' -e 's|:.*||')
-  
-  while ! pg_isready -h "$DB_HOST" -p 5432 -U postgres; do
-    echo "PostgreSQL en production ($DB_HOST) n'est pas encore prêt..."
-    sleep 1
-  done
+  DB_PORT=5432
+  DB_USER=postgres
 else
-  # En local (Docker Compose classique)
-  while ! pg_isready -h ${POSTGRES_HOST:-db} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-postgres}; do
-    echo "PostgreSQL local n'est pas encore prêt..."
-    sleep 1
-  done
+  # Local Docker Compose
+  DB_HOST=${POSTGRES_HOST:-btl-db}
+  DB_PORT=${POSTGRES_PORT:-5432}
+  DB_USER=${POSTGRES_USER:-postgres}
 fi
 
-echo "PostgreSQL est prêt !"
+MAX_TRIES=30
+COUNT=0
+until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" > /dev/null 2>&1; do
+  COUNT=$((COUNT + 1))
+  if [ $COUNT -ge $MAX_TRIES ]; then
+    echo "❌ PostgreSQL inaccessible après ${MAX_TRIES}s — abandon."
+    exit 1
+  fi
+  echo "   PostgreSQL ($DB_HOST:$DB_PORT) pas encore prêt... ($COUNT/$MAX_TRIES)"
+  sleep 1
+done
+echo "✅ PostgreSQL est prêt !"
 
-# Application des migrations de la base de données
-python manage.py migrate --noinput
+# ─────────────────────────────────────────────
+# 2. Migrations — uniquement pour le backend
+#    Les workers Celery sautent cette étape
+# ─────────────────────────────────────────────
+SKIP_MIGRATE=${SKIP_MIGRATE:-false}
 
-echo "Démarrage de l'application..."
+if [ "$SKIP_MIGRATE" = "false" ]; then
+  echo "🔄 Application des migrations Django..."
+  # On retire set -e temporairement pour afficher l'erreur proprement
+  set +e
+  python manage.py migrate --noinput
+  MIGRATE_EXIT=$?
+  set -e
 
-# Si aucune commande spécifique n'est fournie au conteneur, on démarre Gunicorn
-if [ $# -eq 0 ]; then
-    # Utilise la variable PORT de Railway (qui sera 8003), ou 8003 par défaut
-    TARGET_PORT=${PORT:-8003}
-    echo "Lancement de Gunicorn sur le port $TARGET_PORT..."
-    exec gunicorn config.wsgi:application --bind 0.0.0.0:$TARGET_PORT
+  if [ $MIGRATE_EXIT -ne 0 ]; then
+    echo "❌ Les migrations ont échoué (code $MIGRATE_EXIT)."
+    echo "   Vérifie les logs ci-dessus pour plus de détails."
+    exit $MIGRATE_EXIT
+  fi
+  echo "✅ Migrations appliquées !"
 else
-    # Sinon, exécute la commande passée (ex: en local avec docker-compose)
-    exec "$@"
+  echo "⏭️  Migrations ignorées (SKIP_MIGRATE=true)"
+fi
+
+# ─────────────────────────────────────────────
+# 3. Collecte des fichiers statiques (prod uniquement)
+# ─────────────────────────────────────────────
+if [ "${DEBUG:-true}" = "false" ]; then
+  echo "📦 Collecte des fichiers statiques..."
+  python manage.py collectstatic --noinput --clear > /dev/null 2>&1 && echo "✅ Statiques collectés !" || echo "⚠️  collectstatic a échoué (non bloquant)"
+fi
+
+# ─────────────────────────────────────────────
+# 4. Lancement
+# ─────────────────────────────────────────────
+echo "🚀 Démarrage : ${@:-gunicorn}"
+
+if [ $# -eq 0 ]; then
+  TARGET_PORT=${PORT:-8003}
+  echo "   Gunicorn → 0.0.0.0:$TARGET_PORT"
+  exec gunicorn config.wsgi:application \
+    --bind 0.0.0.0:$TARGET_PORT \
+    --workers ${GUNICORN_WORKERS:-2} \
+    --timeout ${GUNICORN_TIMEOUT:-120} \
+    --log-level info \
+    --access-logfile -
+else
+  exec "$@"
 fi
