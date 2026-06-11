@@ -132,6 +132,21 @@ class Goodie(BaseModel):
     )
     nom = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    
+    # Produit associé (ex: la boisson offerte avec le goodie)
+    produit_associe = models.ForeignKey(
+        Produit,
+        on_delete=models.SET_NULL,
+        related_name='goodies_offerts',
+        null=True,
+        blank=True,
+        help_text="Produit offert avec ce goodie (ex: boisson)"
+    )
+    quantite_produit_associe = models.PositiveIntegerField(
+        default=1,
+        help_text="Quantité du produit associé à offrir avec ce goodie"
+    )
+    # quantite_initiale = models.PositiveIntegerField(default=0, help_text="Stock initial de ce goodie pour la campagne")
 
     def __str__(self):
         campagne_str = f" - {self.campagne.nom}" if self.campagne else ""
@@ -294,6 +309,11 @@ class Vente(BaseModel):
     class TypeConditionnement(models.TextChoices):
         UNITE = 'UNITE', "À l'unité"
         PACK = 'PACK', 'En Pack'
+    
+    class TypeVente(models.TextChoices):
+        NORMAL = 'NORMAL', "Vente normale"
+        GRATUIT = 'GRATUIT', "Offert avec goodie"
+        PROMOTION = 'PROMOTION', "Offert via promotion"
 
     degustation = models.OneToOneField(
         Degustation,
@@ -308,11 +328,17 @@ class Vente(BaseModel):
 
     conditionnement = models.CharField(max_length=10, choices=TypeConditionnement.choices)
     quantite = models.PositiveIntegerField(default=1)
+    type_vente = models.CharField(max_length=10, choices=TypeVente.choices, default=TypeVente.NORMAL)
+    nom_client = models.CharField(max_length=150, blank=True, null=True, help_text="Optionnel ou Prénom")
 
     @property
     def prix_total(self):
-        if self.produit.prix_indicatif:
-            return self.produit.prix_indicatif * self.quantite
+        try:
+            prix = SiteProduitPrix.objects.get(site=self.site, produit=self.produit).prix
+        except Exception:
+            prix = self.produit.prix_indicatif
+        if prix:
+            return prix * self.quantite
         return None
 
     def __str__(self):
@@ -352,6 +378,26 @@ class GainGoodie(BaseModel):
     )
     site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='gains_goodies')
     goodie = models.ForeignKey(Goodie, on_delete=models.CASCADE, related_name='gains_sites')
+    
+    # Enregistrement du produit associé au goodie au moment du gain (snapshot)
+    produit_associe = models.ForeignKey(
+        Produit, 
+        on_delete=models.SET_NULL, 
+        related_name='gains_produits_associes',
+        null=True, 
+        blank=True,
+        help_text="Produit associé offert avec ce goodie"
+    )
+    quantite_produit = models.PositiveIntegerField(
+        default=1,
+        help_text="Quantité du produit associé remportée avec ce goodie"
+    )
+    
+    # Nom du client (optionnel)
+    nom_client = models.CharField(
+        max_length=150, blank=True, null=True,
+        help_text="Prénom du client bénéficiaire (optionnel)"
+    )
 
     def __str__(self):
         source = self.degustation if self.degustation else self.promotion
@@ -430,4 +476,59 @@ class GainPromotion(BaseModel):
             f"{self.hotesse.name} → {self.promotion.recompense_description} "
             f"({self.quantite_produits_concernes} produits) sur {self.site.nom}"
         )
- 
+
+
+class SiteProduitPrix(BaseModel):
+    """Prix de vente effectif d'un produit sur un site donné.
+    Permet d'écraser le prix_indicatif du produit pour le calcul du CA."""
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='prix_produits')
+    produit = models.ForeignKey(Produit, on_delete=models.CASCADE, related_name='prix_sites')
+    prix = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        unique_together = ('site', 'produit')
+
+    def __str__(self):
+        return f"{self.produit.nom} sur {self.site.nom} → {self.prix} FCFA"
+
+
+class ObjectifSite(BaseModel):
+    """Objectif quotidien ou de campagne assigné à une hôtesse sur un site."""
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='objectifs')
+    hotesse = models.ForeignKey(
+        RemoteUser,
+        on_delete=models.CASCADE,
+        related_name='objectifs_sites',
+        limit_choices_to={'role': RemoteUser.Roles.HOTESSES}
+    )
+    date = models.DateField(help_text="Date à laquelle l'objectif s'applique (ou date de début de période)")
+    objectif_degustations = models.PositiveIntegerField(default=0)
+    objectif_ventes = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ('site', 'hotesse', 'date')
+
+    def __str__(self):
+        return f"Objectif {self.hotesse.name} sur {self.site.nom} le {self.date}"
+
+
+class RapportJournalier(BaseModel):
+    """Rapport journalier par hôtesse / site, généré automatiquement chaque soir."""
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='rapports_journaliers')
+    hotesse = models.ForeignKey(
+        RemoteUser,
+        on_delete=models.CASCADE,
+        related_name='rapports_journaliers',
+        limit_choices_to={'role': RemoteUser.Roles.HOTESSES}
+    )
+    date = models.DateField()
+    nb_degustations = models.PositiveIntegerField(default=0)
+    nb_ventes = models.PositiveIntegerField(default=0)
+    chiffre_affaires = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    email_envoye = models.BooleanField(default=False, help_text="True une fois l'email superviseur envoyé")
+
+    class Meta:
+        unique_together = ('site', 'hotesse', 'date')
+
+    def __str__(self):
+        return f"Rapport {self.hotesse.name} — {self.site.nom} — {self.date}"

@@ -4,7 +4,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q, Count, Sum, F
 
-from btl.models import Campagne, RemoteUser, Site, Degustation, Vente, GainPromotion, Promotion
+import math
+from btl.models import Campagne, RemoteUser, Site, Degustation, Vente, GainPromotion, Promotion, SiteProduitPrix, ObjectifSite
 from btl.permissions import IsAdmin, IsAdminOrReadOnly, IsPasswordChanged
 from btl.serializers import (
     CampagneListSerializer, CampagneDetailSerializer, CampagneWriteSerializer,
@@ -108,11 +109,12 @@ class CampagneViewSet(viewsets.ModelViewSet):
             {"detail": "Équipe de la campagne mise à jour avec succès."},
             status=status.HTTP_200_OK
         )
-@action(detail=True, methods=['get'], url_path='rapport-sites')
-def rapport_sites(self, request, pk=None):
+
+    @action(detail=True, methods=['get'], url_path='rapport-sites')
+    def rapport_sites(self, request, pk=None):
         """
         GET /api/campagnes/{id}/rapport-sites/
-        Synthèse par site : performances, répartition produits, goodies distribués 
+        Synthèse par site : performances, répartition produits, goodies distribués
         adaptés dynamiquement selon le type de campagne et de récompense.
         """
         campagne = self.get_object()
@@ -140,11 +142,16 @@ def rapport_sites(self, request, pk=None):
 
             # 2. Gestion des Ventes & Chiffre d'affaires
             if est_mode_vente:
-                ventes_qs = Vente.objects.filter(site=site)
+                ventes_qs = Vente.objects.filter(site=site).select_related('produit')
                 ventes_count = ventes_qs.count()
-                chiffre_affaires = ventes_qs.aggregate(
-                    total=Sum(F('produit__prix_indicatif') * F('quantite'))
-                )['total'] or 0
+                prix_overrides = {
+                    spp.produit_id: spp.prix
+                    for spp in SiteProduitPrix.objects.filter(site=site)
+                }
+                chiffre_affaires = sum(
+                    (prix_overrides.get(v.produit_id) or v.produit.prix_indicatif or 0) * v.quantite
+                    for v in ventes_qs
+                )
             else:
                 ventes_qs = Vente.objects.none()
                 ventes_count = 0
@@ -160,7 +167,7 @@ def rapport_sites(self, request, pk=None):
                         'degustations': row['degustations'],
                         'ventes': 0,
                     }
-            
+
             if est_mode_vente:
                 for row in ventes_qs.values('produit__nom').annotate(ventes=Count('id')):
                     nom = row['produit__nom'] or 'Produit'
@@ -182,7 +189,7 @@ def rapport_sites(self, request, pk=None):
             # 4. Gestion des Goodies (Roue de la fortune)
             goodies_list = []
             site_goodies_distribues = 0
-            
+
             if a_des_goodies:
                 for stock in site.stocks_goodies.all():
                     distribue = max(0, stock.quantite_initiale - stock.quantite_restante)
@@ -234,6 +241,8 @@ def rapport_sites(self, request, pk=None):
                 'emplacement_precis': site.emplacement_precis,
                 'nb_hotesses': site.hotesses.count(),
                 'nb_superviseurs': site.superviseurs.count(),
+                'hotesses_noms': [h.name or h.email for h in site.hotesses.all()],
+                'superviseurs_noms': [s.name or s.email for s in site.superviseurs.all()],
             }
 
             # On n'injecte les clés dans le JSON que si elles concernent le type de campagne choisi
@@ -243,7 +252,7 @@ def rapport_sites(self, request, pk=None):
                     'acheteurs': acheteurs_count,
                     'taux_conversion': taux_conversion,
                 })
-            
+
             if est_mode_vente:
                 payload_site.update({
                     'ventes': ventes_count,
@@ -289,8 +298,49 @@ def rapport_sites(self, request, pk=None):
             'totaux': totaux,
         })
 
-@action(detail=True, methods=['get'], url_path='goodies')
-def goodies(self, request, pk=None):
+    @action(detail=True, methods=['post'], url_path='generer-objectifs',
+            permission_classes=[IsAuthenticated, IsAdmin])
+    def generer_objectifs(self, request, pk=None):
+        """
+        POST /api/campagnes/{id}/generer-objectifs/
+        Génère ou met à jour des ObjectifSite pour chaque hôtesse de chaque site,
+        en répartissant objectif_degustations / objectif_ventes de la campagne
+        par le nombre d'hôtesses sur le site.
+        Payload optionnel : { "date": "YYYY-MM-DD" }  (défaut = date_debut de la campagne)
+        """
+        from datetime import date as date_type
+        campagne = self.get_object()
+        date_str = request.data.get('date')
+        target_date = date_type.fromisoformat(date_str) if date_str else campagne.date_debut
+
+        created, updated = 0, 0
+        for site in campagne.sites.prefetch_related('hotesses').all():
+            nb_hotesses = site.hotesses.count()
+            if nb_hotesses == 0:
+                continue
+            obj_deg = math.ceil((campagne.objectif_degustations or 0) / nb_hotesses)
+            obj_ven = math.ceil((campagne.objectif_ventes or 0) / nb_hotesses)
+
+            for hotesse in site.hotesses.all():
+                _, was_created = ObjectifSite.objects.update_or_create(
+                    site=site, hotesse=hotesse, date=target_date,
+                    defaults={
+                        'objectif_degustations': obj_deg,
+                        'objectif_ventes': obj_ven,
+                    },
+                )
+                if was_created:
+                    created += 1
+                else:
+                    updated += 1
+
+        return Response(
+            {"detail": f"{created} objectifs créés, {updated} mis à jour."},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=['get'], url_path='goodies')
+    def goodies(self, request, pk=None):
         """
         GET /api/campagnes/{id}/goodies/
         Retourne la liste des goodies associés à cette campagne.

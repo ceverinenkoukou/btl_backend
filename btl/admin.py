@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from btl.models import RemoteUser, Entreprise, Campagne, Site, Produit, Goodie, StockGoodieSite, Degustation, Vente
+from btl.models import RemoteUser, Entreprise, Campagne, Site, Produit, Goodie, StockGoodieSite, Degustation, Vente, Promotion, GainGoodie
 
 
 @admin.register(RemoteUser)
@@ -57,8 +57,10 @@ class ProduitAdmin(admin.ModelAdmin):
 
 @admin.register(Goodie)
 class GoodieAdmin(admin.ModelAdmin):
-    list_display = ('nom', 'entreprise')
-    search_fields = ('nom',)
+    list_display = ('nom', 'entreprise', 'campagne', 'produit_associe', 'quantite_produit_associe')
+    search_fields = ('nom', 'entreprise__nom_commercial', 'campagne__nom')
+    list_filter = ('campagne', 'entreprise')
+    fields = ('nom', 'description', 'entreprise', 'campagne', 'produit_associe', 'quantite_produit_associe')
 
 
 @admin.register(StockGoodieSite)
@@ -77,3 +79,20 @@ class DegustationAdmin(admin.ModelAdmin):
 class VenteAdmin(admin.ModelAdmin):
     list_display = ('produit', 'hotesse', 'site', 'conditionnement', 'quantite', 'created_at')
     list_filter = ('conditionnement',)
+
+
+@admin.register(Promotion)
+class PromotionAdmin(admin.ModelAdmin):
+    list_display = ('campagne', 'type_promotion', 'quantite_requise', 'recompense_description', 'is_active')
+    list_filter = ('campagne', 'type_promotion', 'is_active')
+    search_fields = ('campagne__nom', 'recompense_description')
+    fields = ('campagne', 'type_promotion', 'quantite_requise', 'recompense_description', 'is_active')
+
+
+@admin.register(GainGoodie)
+class GainGoodieAdmin(admin.ModelAdmin):
+    list_display = ('goodie', 'site', 'produit_associe', 'nom_client', 'created_at')
+    list_filter = ('site__campagne', 'created_at')
+    search_fields = ('goodie__nom', 'site__nom', 'nom_client')
+    readonly_fields = ('created_at', 'id')
+    fields = ('site', 'goodie', 'produit_associe', 'quantite_produit', 'nom_client', 'degustation', 'promotion', 'created_at', 'id')

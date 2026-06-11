@@ -75,10 +75,12 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # --- Service Celery Worker ---
+  # --- Service Celery Worker ---# --- Service Celery Worker ---
   btl-celery:
     image: btl-app-base:latest
     container_name: btl-celery
+    # ─── AJOUT DE CETTE LIGNE POUR OUTREPASSER LE SCRIPT D'ENTRYPOINT DE MIGRATION ───
+    entrypoint: [] 
     command: celery -A config worker --loglevel=info
     env_file: .env
     dns:
@@ -87,11 +89,13 @@ services:
     depends_on:
       btl-db:
         condition: service_healthy
-      btl-redis:                        # ✅ CORRECTION 3
+      btl-redis:
         condition: service_started
+      # ─── AJOUTER LA DEPENDANCE SUR LE BACKEND POUR QU'IL ATTENDE LA FIN DES MIGRATIONS ───
+      btl-backend:
+        condition: service_healthy
     networks:
       - btl-network
-
 # --- Réseau Interne ---
 networks:
   btl-network:

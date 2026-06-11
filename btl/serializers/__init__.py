@@ -15,3 +15,8 @@ from .GoodieSerializer import (
     StockGoodieSiteSerializer,
     AllouerGoodieSerializer,
 )
+from .GainGoodieSerializer import GainGoodieSerializer, EnregistrerGainGoodieSerializer
+from .GainPromotionSerializer import GainPromotionSerializer
+from .ObjectifSiteSerializer import ObjectifSiteSerializer, ObjectifSiteWriteSerializer
+from .RapportJournalierSerializer import RapportJournalierSerializer
+from .SiteProduitPrixSerializer import SiteProduitPrixSerializer

@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import timedelta
 from decouple import config
 import dj_database_url
+from celery.schedules import crontab
 
 
 
@@ -153,5 +154,17 @@ EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
 
 # CELERY_TASK_ALWAYS_EAGER = True
 # CELERY_TASK_EAGER_PROPAGATES = True
+
+# --- Celery ---
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+CELERY_TIMEZONE = 'Africa/Libreville'
+
+CELERY_BEAT_SCHEDULE = {
+    'generer-rapports-journaliers-23h': {
+        'task': 'btl.tasks.task_generer_rapports_journaliers',
+        'schedule': crontab(hour=23, minute=0),
+    },
+}
 
 

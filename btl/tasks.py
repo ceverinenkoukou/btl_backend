@@ -1,5 +1,62 @@
 from config.celery import app
 
+
+@app.task
+def task_generer_rapports_journaliers(date_str=None):
+    """
+    Génère (ou met à jour) un RapportJournalier par hôtesse/site pour la date donnée,
+    puis envoie un email récapitulatif aux superviseurs de chaque site.
+    Planifié via CELERY_BEAT_SCHEDULE chaque soir à 23h00.
+    """
+    from datetime import date as date_type
+    from decimal import Decimal
+    from django.db.models import Sum, F
+    from btl.models import Site, Degustation, Vente, RapportJournalier, SiteProduitPrix
+    from btl.services.email_service import envoyer_rapport_journalier
+
+    target_date = date_type.fromisoformat(date_str) if date_str else date_type.today()
+
+    for site in Site.objects.prefetch_related('hotesses', 'superviseurs', 'campagne').all():
+        for hotesse in site.hotesses.all():
+            nb_deg = Degustation.objects.filter(
+                site=site, hotesse=hotesse, created_at__date=target_date
+            ).count()
+
+            ventes_qs = Vente.objects.filter(
+                site=site, hotesse=hotesse, created_at__date=target_date
+            ).select_related('produit')
+
+            nb_ventes = ventes_qs.count()
+
+            ca = Decimal('0')
+            for vente in ventes_qs:
+                try:
+                    prix = SiteProduitPrix.objects.get(site=site, produit=vente.produit).prix
+                except SiteProduitPrix.DoesNotExist:
+                    prix = vente.produit.prix_indicatif or Decimal('0')
+                ca += prix * vente.quantite
+
+            rapport, _ = RapportJournalier.objects.update_or_create(
+                site=site,
+                hotesse=hotesse,
+                date=target_date,
+                defaults={
+                    'nb_degustations': nb_deg,
+                    'nb_ventes': nb_ventes,
+                    'chiffre_affaires': ca,
+                    'email_envoye': False,
+                },
+            )
+
+            for superviseur in site.superviseurs.all():
+                try:
+                    envoyer_rapport_journalier(superviseur, rapport)
+                    rapport.email_envoye = True
+                    rapport.save(update_fields=['email_envoye'])
+                except Exception:
+                    pass
+
+
 @app.task(bind=True, max_retries=3)
 def task_envoyer_email_bienvenue_entreprise(self, entreprise_id, password):
     # Imports locaux à l'intérieur de la tâche

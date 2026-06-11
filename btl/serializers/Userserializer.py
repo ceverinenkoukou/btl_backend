@@ -5,14 +5,24 @@ from btl.models import RemoteUser
 
 class RemoteUserSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source='get_role_display', read_only=True)
+    entreprise_id = serializers.SerializerMethodField()
 
     class Meta:
         model = RemoteUser
         fields = [
             'id', 'email', 'username', 'name', 'role',
-            'role_display', 'is_active', 'is_password_changed', 'created_at'
+            'role_display', 'is_active', 'is_password_changed', 'created_at', 'entreprise_id'
         ]
         read_only_fields = ['id', 'created_at', 'is_password_changed']
+
+    def get_entreprise_id(self, obj):
+        """Retourne l'ID de l'entreprise si l'utilisateur en a une"""
+        try:
+            if hasattr(obj, 'entreprise_profile') and obj.entreprise_profile:
+                return str(obj.entreprise_profile.id)
+        except:
+            pass
+        return None
 
 
 class CreateUserSerializer(serializers.ModelSerializer):

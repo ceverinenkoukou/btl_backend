@@ -20,6 +20,7 @@ class StockGoodieSiteSerializer(serializers.ModelSerializer):
 class GoodieSerializer(serializers.ModelSerializer):
     campagne_nom = serializers.CharField(source='campagne.nom', read_only=True, allow_null=True)
     entreprise_nom = serializers.CharField(source='entreprise.nom_commercial', read_only=True)
+    produit_associe_nom = serializers.CharField(source='produit_associe.nom', read_only=True, allow_null=True)
     quantite_total = serializers.SerializerMethodField()
     quantite_restante = serializers.SerializerMethodField()
     quantite_distribuee = serializers.SerializerMethodField()
@@ -29,10 +30,11 @@ class GoodieSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'nom', 'description',
             'campagne', 'campagne_nom', 'entreprise_nom',
+            'produit_associe', 'produit_associe_nom', 'quantite_produit_associe',
             'quantite_total', 'quantite_restante', 'quantite_distribuee',
             'created_at'
         ]
-        read_only_fields = ['id', 'created_at', 'entreprise_nom']
+        read_only_fields = ['id', 'created_at', 'entreprise_nom', 'produit_associe_nom']
 
     def get_quantite_total(self, obj):
         """Somme des quantités initiales sur tous les sites."""
@@ -66,7 +68,7 @@ class GoodieCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Goodie
-        fields = ['nom', 'description', 'campagne', 'quantite_total']
+        fields = ['nom', 'description', 'campagne', 'produit_associe', 'quantite_produit_associe', 'quantite_total']
 
     def create(self, validated_data):
         quantite_total = validated_data.pop('quantite_total', 0)
@@ -104,7 +106,7 @@ class GoodieUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Goodie
-        fields = ['nom', 'description']
+        fields = ['nom', 'description', 'produit_associe', 'quantite_produit_associe']
 
 
 class AllouerGoodieSerializer(serializers.Serializer):

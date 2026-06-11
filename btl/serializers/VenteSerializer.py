@@ -8,7 +8,7 @@ class VenteLightSerializer(serializers.ModelSerializer):
         source='get_conditionnement_display', read_only=True
     )
     prix_total = serializers.DecimalField(
-        source='prix_total', max_digits=12, decimal_places=2, read_only=True
+        max_digits=12, decimal_places=2, read_only=True
     )
 
     class Meta:
@@ -26,7 +26,7 @@ class VenteSerializer(serializers.ModelSerializer):
         source='get_conditionnement_display', read_only=True
     )
     prix_total = serializers.DecimalField(
-        source='prix_total', max_digits=12, decimal_places=2, read_only=True
+        max_digits=12, decimal_places=2, read_only=True
     )
 
     class Meta:
@@ -36,7 +36,8 @@ class VenteSerializer(serializers.ModelSerializer):
             'hotesse_nom', 'site_nom', 'campagne_nom', 'entreprise_nom',
             'produit', 'produit_nom',
             'conditionnement', 'conditionnement_display',
-            'quantite', 'prix_total',
+            'quantite', 'prix_total', 'type_vente',
+            'nom_client',
             'created_at',
         ]
         read_only_fields = ['id', 'created_at']

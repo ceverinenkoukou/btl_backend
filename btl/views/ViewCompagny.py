@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
+from django.db.models import Sum, Count, F, Q
 
 from btl.models import Entreprise, RemoteUser, Produit
 from btl.permissions import IsAdmin, IsPasswordChanged
@@ -119,3 +120,156 @@ class EntrepriseViewSet(viewsets.ModelViewSet):
         qs = entreprise.campagnes.all()
         serializer = CampagneListSerializer(qs, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='statistiques',
+            permission_classes=[IsAuthenticated, IsPasswordChanged])
+    def statistiques(self, request, pk=None):
+        """
+        GET /api/entreprises/{id}/statistiques/
+        Retourne toutes les statistiques quantifiables de l'entreprise
+        """
+        from btl.models import Vente, GainGoodie, Goodie, Degustation, Site, StockGoodieSite
+        
+        entreprise = self.get_object()
+        
+        # Statistiques produits
+        total_produits = entreprise.produits.count()
+        produits_list = []
+        for produit in entreprise.produits.all():
+            ventes_normales = Vente.objects.filter(
+                produit=produit,
+                type_vente=Vente.TypeVente.NORMAL
+            ).aggregate(total=Sum('quantite'))['total'] or 0
+            
+            ventes_offertes = Vente.objects.filter(
+                produit=produit,
+                type_vente=Vente.TypeVente.GRATUIT
+            ).aggregate(total=Sum('quantite'))['total'] or 0
+            
+            produits_list.append({
+                'id': str(produit.id),
+                'nom': produit.nom,
+                'type_conditionnement': produit.type_conditionnement,
+                'prix_indicatif': str(produit.prix_indicatif) if produit.prix_indicatif else None,
+                'ventes_normales': ventes_normales,
+                'ventes_offertes': ventes_offertes,
+                'total_vendu': ventes_normales + ventes_offertes,
+            })
+        
+        # Statistiques goodies
+        total_goodies = entreprise.goodies.count()
+        total_goodies_initial = StockGoodieSite.objects.filter(
+            goodie__entreprise=entreprise
+        ).aggregate(total=Sum('quantite_initiale'))['total'] or 0
+        
+        total_goodies_distribues = StockGoodieSite.objects.filter(
+            goodie__entreprise=entreprise
+        ).aggregate(total=Sum(F('quantite_initiale') - F('quantite_restante')))['total'] or 0
+        
+        # Goodies par site
+        goodies_par_site = {}
+        for stock in StockGoodieSite.objects.filter(
+            goodie__entreprise=entreprise
+        ).select_related('site', 'goodie'):
+            site_id = str(stock.site.id)
+            if site_id not in goodies_par_site:
+                goodies_par_site[site_id] = {
+                    'site_id': site_id,
+                    'site_nom': stock.site.nom,
+                    'total_initial': 0,
+                    'total_distribue': 0,
+                    'goodies': []
+                }
+            
+            distribue = stock.quantite_initiale - stock.quantite_restante
+            goodies_par_site[site_id]['total_initial'] += stock.quantite_initiale
+            goodies_par_site[site_id]['total_distribue'] += distribue
+            goodies_par_site[site_id]['goodies'].append({
+                'goodie_id': str(stock.goodie.id),
+                'goodie_nom': stock.goodie.nom,
+                'quantite_initiale': stock.quantite_initiale,
+                'quantite_restante': stock.quantite_restante,
+                'quantite_distribuee': distribue,
+            })
+        
+        # Dégustations
+        degustations_count = Degustation.objects.filter(
+            campagne__entreprise=entreprise
+        ).count()
+        
+        degustations_convertis = Degustation.objects.filter(
+            campagne__entreprise=entreprise,
+            a_achete=True
+        ).count()
+        
+        # Ventes globales
+        total_ventes_normales = Vente.objects.filter(
+            hotesse__ventes__produit__entreprise=entreprise,
+            type_vente=Vente.TypeVente.NORMAL
+        ).distinct().aggregate(total=Sum('quantite'))['total'] or 0
+        
+        total_ventes_offertes = Vente.objects.filter(
+            hotesse__ventes__produit__entreprise=entreprise,
+            type_vente=Vente.TypeVente.GRATUIT
+        ).distinct().aggregate(total=Sum('quantite'))['total'] or 0
+        
+        # Simplification des requêtes de ventes
+        ventes_normales_qs = Vente.objects.filter(
+            produit__entreprise=entreprise,
+            type_vente=Vente.TypeVente.NORMAL
+        )
+        ventes_offertes_qs = Vente.objects.filter(
+            produit__entreprise=entreprise,
+            type_vente=Vente.TypeVente.GRATUIT
+        )
+        
+        total_ventes_normales = ventes_normales_qs.aggregate(total=Sum('quantite'))['total'] or 0
+        total_ventes_offertes = ventes_offertes_qs.aggregate(total=Sum('quantite'))['total'] or 0
+        total_ventes_count = ventes_normales_qs.count() + ventes_offertes_qs.count()
+        
+        # Chiffre d'affaires
+        ca_total = ventes_normales_qs.aggregate(
+            total=Sum(F('produit__prix_indicatif') * F('quantite'))
+        )['total'] or 0
+        
+        # Sites
+        sites_count = Site.objects.filter(
+            campagne__entreprise=entreprise
+        ).distinct().count()
+        
+        return Response({
+            'entreprise_id': str(entreprise.id),
+            'entreprise_nom': entreprise.nom_commercial,
+            'resume': {
+                'total_produits': total_produits,
+                'total_goodies': total_goodies,
+                'total_sites': sites_count,
+                'total_degustations': degustations_count,
+                'degustations_converties': degustations_convertis,
+                'taux_conversion': int((degustations_convertis / degustations_count * 100) if degustations_count > 0 else 0),
+            },
+            'produits': {
+                'total': total_produits,
+                'detail': produits_list,
+            },
+            'goodies': {
+                'total_types': total_goodies,
+                'total_initial': total_goodies_initial,
+                'total_distribue': total_goodies_distribues,
+                'restant': total_goodies_initial - total_goodies_distribues,
+                'taux_distribution': int((total_goodies_distribues / total_goodies_initial * 100) if total_goodies_initial > 0 else 0),
+                'par_site': list(goodies_par_site.values()),
+            },
+            'ventes': {
+                'total_normales': total_ventes_normales,
+                'total_offertes': total_ventes_offertes,
+                'total_unite': total_ventes_normales + total_ventes_offertes,
+                'total_transactions': total_ventes_count,
+                'chiffre_affaires': str(ca_total),
+            },
+            'degustations': {
+                'total': degustations_count,
+                'converties': degustations_convertis,
+                'taux_conversion': int((degustations_convertis / degustations_count * 100) if degustations_count > 0 else 0),
+            }
+        })
