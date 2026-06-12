@@ -21,6 +21,15 @@ class VenteSerializer(serializers.ModelSerializer):
     site_nom = serializers.CharField(source='site.nom', read_only=True)
     campagne_nom = serializers.CharField(source='site.campagne.nom', read_only=True)
     entreprise_nom = serializers.CharField(source='site.campagne.entreprise.nom_commercial', read_only=True)
+    entreprise_logo = serializers.CharField(source='site.campagne.entreprise.logo_url', read_only=True, allow_null=True)
+    entreprise_couleur_primaire = serializers.CharField(
+        source='site.campagne.entreprise.couleur_primaire',
+        read_only=True
+    )
+    entreprise_couleur_secondaire = serializers.CharField(
+        source='site.campagne.entreprise.couleur_secondaire',
+        read_only=True
+    )
     produit_nom = serializers.CharField(source='produit.nom', read_only=True)
     conditionnement_display = serializers.CharField(
         source='get_conditionnement_display', read_only=True
@@ -34,6 +43,8 @@ class VenteSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'hotesse_nom', 'site_nom', 'campagne_nom', 'entreprise_nom',
+            'entreprise_logo', 'entreprise_couleur_primaire',
+            'entreprise_couleur_secondaire',
             'produit', 'produit_nom',
             'conditionnement', 'conditionnement_display',
             'quantite', 'prix_total', 'type_vente',
