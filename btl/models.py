@@ -355,6 +355,12 @@ class Promotion(BaseModel):
     campagne = models.ForeignKey(
         Campagne, on_delete=models.CASCADE, related_name='promotions'
     )
+    sites = models.ManyToManyField(
+        'Site',
+        related_name='promotions_ciblees',
+        blank=True,
+        help_text="Sites ciblés par l'offre. Vide = offre disponible sur tous les sites de la campagne."
+    )
     type_promotion = models.CharField(
         max_length=10, choices=TypePromotion.choices, default=TypePromotion.OFFERT
     )
@@ -524,6 +530,7 @@ class RapportJournalier(BaseModel):
     date = models.DateField()
     nb_degustations = models.PositiveIntegerField(default=0)
     nb_ventes = models.PositiveIntegerField(default=0)
+    nb_goodies = models.PositiveIntegerField(default=0)
     chiffre_affaires = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     email_envoye = models.BooleanField(default=False, help_text="True une fois l'email superviseur envoyé")
 

@@ -10,7 +10,7 @@ class RapportJournalierSerializer(serializers.ModelSerializer):
         model = RapportJournalier
         fields = [
             'id', 'site', 'site_nom', 'hotesse', 'hotesse_nom',
-            'date', 'nb_degustations', 'nb_ventes', 'chiffre_affaires',
+            'date', 'nb_degustations', 'nb_ventes', 'nb_goodies', 'chiffre_affaires',
             'email_envoye', 'created_at',
         ]
         read_only_fields = ['id', 'created_at', 'email_envoye']

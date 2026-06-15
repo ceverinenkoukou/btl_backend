@@ -210,7 +210,9 @@ class CampagneViewSet(viewsets.ModelViewSet):
             total_produits_site = 0
 
             if a_des_promotions:
-                promotions_campagne = campagne.promotions.filter(is_active=True)
+                promotions_campagne = campagne.promotions.filter(is_active=True).filter(
+                    Q(sites__isnull=True) | Q(sites=site)
+                ).distinct()
                 for promo in promotions_campagne:
                     gains_qs = GainPromotion.objects.filter(
                         promotion=promo, site=site

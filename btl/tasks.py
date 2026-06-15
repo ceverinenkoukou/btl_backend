@@ -10,13 +10,14 @@ def task_generer_rapports_journaliers(date_str=None):
     """
     from datetime import date as date_type
     from decimal import Decimal
-    from django.db.models import Sum, F
-    from btl.models import Site, Degustation, Vente, RapportJournalier, SiteProduitPrix
+    from django.db.models import Q
+    from btl.models import Site, Degustation, Vente, RapportJournalier, SiteProduitPrix, GainGoodie
     from btl.services.email_service import envoyer_rapport_journalier
 
     target_date = date_type.fromisoformat(date_str) if date_str else date_type.today()
 
     for site in Site.objects.prefetch_related('hotesses', 'superviseurs', 'campagne').all():
+        site_hotesses_count = site.hotesses.count()
         for hotesse in site.hotesses.all():
             nb_deg = Degustation.objects.filter(
                 site=site, hotesse=hotesse, created_at__date=target_date
@@ -36,6 +37,15 @@ def task_generer_rapports_journaliers(date_str=None):
                     prix = vente.produit.prix_indicatif or Decimal('0')
                 ca += prix * vente.quantite
 
+            goodies_filter = Q(degustation__hotesse=hotesse)
+            if site_hotesses_count == 1:
+                goodies_filter |= Q(degustation__isnull=True)
+
+            nb_goodies = GainGoodie.objects.filter(
+                site=site,
+                created_at__date=target_date,
+            ).filter(goodies_filter).count()
+
             rapport, _ = RapportJournalier.objects.update_or_create(
                 site=site,
                 hotesse=hotesse,
@@ -43,6 +53,7 @@ def task_generer_rapports_journaliers(date_str=None):
                 defaults={
                     'nb_degustations': nb_deg,
                     'nb_ventes': nb_ventes,
+                    'nb_goodies': nb_goodies,
                     'chiffre_affaires': ca,
                     'email_envoye': False,
                 },
@@ -52,7 +63,7 @@ def task_generer_rapports_journaliers(date_str=None):
                 try:
                     envoyer_rapport_journalier(superviseur, rapport)
                     rapport.email_envoye = True
-                    rapport.save(update_fields=['email_envoye'])
+                    rapport.save(update_fields=['email_envoye', 'nb_goodies'])
                 except Exception:
                     pass
 

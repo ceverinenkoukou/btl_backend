@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Q
 
 from btl.models import Degustation, Site, RemoteUser, Campagne
 from btl.permissions import IsPasswordChanged
@@ -104,7 +105,9 @@ class DegustationViewSet(viewsets.ModelViewSet):
         # Récupérer les promotions actives de la campagne si type_recompense = PROMOTIONS
         promotions_data = []
         if site.campagne.type_recompense == Campagne.TypeRecompense.PROMOTIONS:
-            promotions = site.campagne.promotions.filter(is_active=True).order_by('quantite_requise')
+            promotions = site.campagne.promotions.filter(is_active=True).filter(
+                Q(sites__isnull=True) | Q(sites=site)
+            ).distinct().order_by('quantite_requise')
             promotions_data = [
                 {
                     'id': str(p.id),
