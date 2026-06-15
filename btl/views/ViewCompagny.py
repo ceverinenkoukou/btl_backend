@@ -24,7 +24,7 @@ class EntrepriseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsPasswordChanged]
 
     def get_permissions(self):
-        if self.action in ('create', 'destroy', 'update', 'partial_update'):
+        if self.action in ('create', 'destroy', 'update', 'partial_update', 'resend_credentials'):
             return [IsAuthenticated(), IsAdmin()]
         return [IsAuthenticated(), IsPasswordChanged()]
 
@@ -110,6 +110,40 @@ class EntrepriseViewSet(viewsets.ModelViewSet):
             payload['email_error'] = email_error
 
         return Response(payload, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='resend-credentials',
+            permission_classes=[IsAuthenticated, IsAdmin])
+    def resend_credentials(self, request, pk=None):
+        """
+        POST /api/entreprises/{id}/resend-credentials/
+        Génère un nouveau mot de passe provisoire, le définit sur l'utilisateur lié
+        à l'entreprise, réinitialise is_password_changed à False et renvoie l'email
+        de bienvenue avec les nouveaux identifiants.
+        """
+        entreprise = self.get_object()
+        password = generer_mot_de_passe_provisoire()
+        entreprise.user.set_password(password)
+        entreprise.user.is_password_changed = False
+        entreprise.user.save()
+
+        email_sent = False
+        try:
+            import btl.tasks as btl_tasks
+            btl_tasks.task_envoyer_email_bienvenue_entreprise.delay(entreprise.id, password)
+            email_sent = True
+        except Exception:
+            logger.exception(
+                "Échec de la mise en file d'attente pour renvoyer les identifiants à %s",
+                entreprise.user.email,
+            )
+
+        return Response(
+            {
+                "detail": f"Identifiants régénérés et envoyés à {entreprise.user.email}.",
+                "email_sent": email_sent,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=['get'], url_path='campagnes',
             permission_classes=[IsAuthenticated, IsPasswordChanged])
