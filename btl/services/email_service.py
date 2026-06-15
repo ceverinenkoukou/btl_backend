@@ -96,12 +96,14 @@ def envoyer_rapport_journalier(superviseur, rapport) -> None:
         <th>Hôtesse</th>
         <th>Dégustations</th>
         <th>Ventes</th>
+        <th>Goodies</th>
         <th>CA (FCFA)</th>
       </tr>
       <tr>
         <td>{hotesse.name}</td>
         <td>{rapport.nb_degustations}</td>
         <td>{rapport.nb_ventes}</td>
+        <td>{rapport.nb_goodies}</td>
         <td>{rapport.chiffre_affaires}</td>
       </tr>
     </table>

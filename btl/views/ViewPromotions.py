@@ -92,6 +92,12 @@ class PromotionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        if promotion.sites.exists() and not promotion.sites.filter(id=site.id).exists():
+            return Response(
+                {"detail": "Cette offre n'est pas disponible sur ce site."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         nom_client = request.data.get('nom_client', '').strip() or None
 
         with transaction.atomic():
