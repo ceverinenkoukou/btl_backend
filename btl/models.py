@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import PermissionsMixin, AbstractBaseUser, BaseUserManager
@@ -333,6 +334,8 @@ class Vente(BaseModel):
 
     @property
     def prix_total(self):
+        if self.type_vente != self.TypeVente.NORMAL:
+            return Decimal('0')
         try:
             prix = SiteProduitPrix.objects.get(site=self.site, produit=self.produit).prix
         except Exception:

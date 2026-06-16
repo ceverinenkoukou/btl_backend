@@ -31,6 +31,8 @@ def task_generer_rapports_journaliers(date_str=None):
 
             ca = Decimal('0')
             for vente in ventes_qs:
+                if vente.type_vente != Vente.TypeVente.NORMAL:
+                    continue
                 try:
                     prix = SiteProduitPrix.objects.get(site=site, produit=vente.produit).prix
                 except SiteProduitPrix.DoesNotExist:

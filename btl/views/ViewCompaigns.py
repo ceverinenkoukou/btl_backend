@@ -151,6 +151,7 @@ class CampagneViewSet(viewsets.ModelViewSet):
                 chiffre_affaires = sum(
                     (prix_overrides.get(v.produit_id) or v.produit.prix_indicatif or 0) * v.quantite
                     for v in ventes_qs
+                    if v.type_vente == Vente.TypeVente.NORMAL
                 )
             else:
                 ventes_qs = Vente.objects.none()
