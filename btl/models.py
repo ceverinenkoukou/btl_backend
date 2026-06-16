@@ -367,6 +367,9 @@ class Promotion(BaseModel):
     quantite_requise = models.PositiveIntegerField(
         default=1, help_text="Nombre de produits à acheter pour déclencher la promotion"
     )
+    quantite_offerte = models.PositiveIntegerField(
+        default=1, help_text="Quantité de produits offerts / lots remis lors du déclenchement"
+    )
     recompense_description = models.CharField(
         max_length=255, help_text="Ex: 1 produit offert, bon cadeau Fnac…"
     )

@@ -19,7 +19,7 @@ class PromotionSerializer(serializers.ModelSerializer):
             'id', 'campagne',
             'sites', 'sites_noms',
             'type_promotion', 'type_promotion_display',
-            'quantite_requise', 'recompense_description',
+            'quantite_requise', 'quantite_offerte', 'recompense_description',
             'is_active', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
