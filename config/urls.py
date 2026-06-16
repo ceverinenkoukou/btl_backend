@@ -39,6 +39,7 @@ from btl.views.ViewGainPromotion import GainPromotionViewSet
 from btl.views.ViewObjectifSite import ObjectifSiteViewSet
 from btl.views.ViewRapportJournalier import RapportJournalierViewSet
 from btl.views.ViewSiteProduitPrix import SiteProduitPrixViewSet
+from btl.views.Viewrapportdpdf import RapportPDFViewSet
 
 router = DefaultRouter()
 router.register(r'users', RemoteUserViewSet, basename='user')
@@ -55,6 +56,7 @@ router.register(r'gains-promotions', GainPromotionViewSet, basename='gain-promot
 router.register(r'objectifs-sites', ObjectifSiteViewSet, basename='objectif-site')
 router.register(r'rapports-journaliers', RapportJournalierViewSet, basename='rapport-journalier')
 router.register(r'prix-sites', SiteProduitPrixViewSet, basename='prix-site')
+router.register(r'rapports-pdf', RapportPDFViewSet, basename='rapport-pdf')
 
 urlpatterns = [
     path("admin/", admin.site.urls),
