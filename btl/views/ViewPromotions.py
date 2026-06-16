@@ -137,14 +137,14 @@ class PromotionViewSet(viewsets.ModelViewSet):
                         site=site,
                         produit=produit,
                         conditionnement=Vente.TypeConditionnement.UNITE,
-                        quantite=1,
+                        quantite=promotion.quantite_offerte,
                         type_vente=Vente.TypeVente.PROMOTION,
                         nom_client=nom_client,
                     )
                     ventes_creees.append({
                         "type": "offert",
                         "vente_id": str(vente_offerte.id),
-                        "quantite": 1,
+                        "quantite": promotion.quantite_offerte,
                     })
 
         return Response({
