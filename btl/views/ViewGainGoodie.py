@@ -30,8 +30,8 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
             return GainGoodie.objects.all()
         
         if user.role == RemoteUser.Roles.HOTESSES:
-            # Voir les gains qu'elle a effectués
-            return GainGoodie.objects.none()  # À adapter selon la logique
+            # Voir les gains des sites auxquels l'hôtesse est assignée
+            return GainGoodie.objects.filter(site__hotesses=user)
         
         if user.role == RemoteUser.Roles.SUPERVISEUR:
             # Voir les gains de ses sites
