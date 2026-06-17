@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
+from django.db.models import Q
 
 from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Vente, RemoteUser, Produit, Campagne
 from btl.permissions import IsPasswordChanged
@@ -25,23 +26,30 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
+        qs = GainGoodie.objects.select_related(
+            'goodie',
+            'site',
+            'site__campagne',
+            'site__campagne__entreprise',
+            'produit_associe',
+        ).order_by('-created_at')
         
         if user.role == RemoteUser.Roles.ADMIN:
-            return GainGoodie.objects.all()
+            return qs
         
         if user.role == RemoteUser.Roles.HOTESSES:
-            # Voir les gains qu'elle a effectués
-            return GainGoodie.objects.none()  # À adapter selon la logique
+            return qs.filter(
+                Q(site__hotesses=user) |
+                Q(site__campagne__hotesses=user)
+            ).distinct()
         
         if user.role == RemoteUser.Roles.SUPERVISEUR:
             # Voir les gains de ses sites
-            return GainGoodie.objects.filter(
-                site__superviseurs=user
-            )
+            return qs.filter(site__superviseurs=user)
         
         if user.role == RemoteUser.Roles.ENTREPRISES:
             # Voir les gains de ses campagnes
-            return GainGoodie.objects.filter(
+            return qs.filter(
                 site__campagne__entreprise__user=user
             )
         

@@ -5,16 +5,22 @@ from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Produit
 class GainGoodieSerializer(serializers.ModelSerializer):
     goodie_nom = serializers.CharField(source='goodie.nom', read_only=True)
     site_nom = serializers.CharField(source='site.nom', read_only=True)
+    campagne = serializers.UUIDField(source='site.campagne.id', read_only=True)
+    campagne_nom = serializers.CharField(source='site.campagne.nom', read_only=True)
     produit_nom = serializers.CharField(source='produit_associe.nom', read_only=True)
     
     class Meta:
         model = GainGoodie
         fields = [
-            'id', 'goodie', 'goodie_nom', 'site', 'site_nom', 
+            'id', 'goodie', 'goodie_nom', 'site', 'site_nom',
+            'campagne', 'campagne_nom',
             'produit_associe', 'produit_nom', 'quantite_produit',
             'nom_client', 'created_at'
         ]
-        read_only_fields = ['id', 'created_at', 'goodie_nom', 'site_nom', 'produit_nom']
+        read_only_fields = [
+            'id', 'created_at', 'goodie_nom', 'site_nom',
+            'campagne', 'campagne_nom', 'produit_nom',
+        ]
 
 
 class EnregistrerGainGoodieSerializer(serializers.Serializer):
