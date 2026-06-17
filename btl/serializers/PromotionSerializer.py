@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from btl.models import Promotion, Site
+from btl.models import Promotion, Site, Goodie
 
 
 class PromotionSerializer(serializers.ModelSerializer):
@@ -12,6 +12,12 @@ class PromotionSerializer(serializers.ModelSerializer):
         required=False,
     )
     sites_noms = serializers.SerializerMethodField()
+    goodies = serializers.PrimaryKeyRelatedField(
+        queryset=Goodie.objects.all(),
+        many=True,
+        required=False,
+    )
+    goodies_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Promotion
@@ -19,13 +25,16 @@ class PromotionSerializer(serializers.ModelSerializer):
             'id', 'campagne',
             'sites', 'sites_noms',
             'type_promotion', 'type_promotion_display',
-            'quantite_requise', 'recompense_description',
-            'is_active', 'created_at',
+            'quantite_requise', 'quantite_offerte', 'recompense_description',
+            'is_active', 'goodies', 'goodies_details', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
 
     def get_sites_noms(self, obj):
         return [site.nom for site in obj.sites.all()]
+
+    def get_goodies_details(self, obj):
+        return [{'id': str(g.id), 'nom': g.nom} for g in obj.goodies.all()]
 
     def validate(self, data):
         campagne = data.get('campagne') or getattr(self.instance, 'campagne', None)

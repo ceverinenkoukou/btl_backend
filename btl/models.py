@@ -367,10 +367,19 @@ class Promotion(BaseModel):
     quantite_requise = models.PositiveIntegerField(
         default=1, help_text="Nombre de produits à acheter pour déclencher la promotion"
     )
+    quantite_offerte = models.PositiveIntegerField(
+        default=1, help_text="Nombre de produits offerts au client lors du déclenchement de l'offre"
+    )
     recompense_description = models.CharField(
         max_length=255, help_text="Ex: 1 produit offert, bon cadeau Fnac…"
     )
     is_active = models.BooleanField(default=True)
+    goodies = models.ManyToManyField(
+        'Goodie',
+        related_name='promotions',
+        blank=True,
+        help_text="Goodies disponibles sur la roue pour cette offre promotionnelle"
+    )
 
     def __str__(self):
         return f"Acheter {self.quantite_requise} → {self.recompense_description} ({self.campagne.nom})"
@@ -410,7 +419,13 @@ class GainGoodie(BaseModel):
         return f"Gain de {self.goodie.nom} sur {self.site.nom} ({source})"
 
     class Meta:
-        unique_together = ('degustation', 'site', 'goodie')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['degustation', 'site', 'goodie'],
+                condition=models.Q(degustation__isnull=False),
+                name='unique_gaingoodie_per_degustation'
+            )
+        ]
 
     def distribuer(self, quantite=1):
         stock = StockGoodieSite.objects.get(site=self.site, goodie=self.goodie)
