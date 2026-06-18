@@ -91,8 +91,8 @@ class PromotionAdmin(admin.ModelAdmin):
 
 @admin.register(GainGoodie)
 class GainGoodieAdmin(admin.ModelAdmin):
-    list_display = ('goodie', 'site', 'produit_associe', 'nom_client', 'created_at')
+    list_display = ('goodie', 'site', 'hotesse', 'produit_associe', 'nom_client', 'created_at')
     list_filter = ('site__campagne', 'created_at')
-    search_fields = ('goodie__nom', 'site__nom', 'nom_client')
+    search_fields = ('goodie__nom', 'site__nom', 'hotesse__name', 'hotesse__email', 'nom_client')
     readonly_fields = ('created_at', 'id')
-    fields = ('site', 'goodie', 'produit_associe', 'quantite_produit', 'nom_client', 'degustation', 'promotion', 'created_at', 'id')
+    fields = ('site', 'goodie', 'hotesse', 'produit_associe', 'quantite_produit', 'nom_client', 'degustation', 'promotion', 'created_at', 'id')

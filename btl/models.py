@@ -393,6 +393,14 @@ class GainGoodie(BaseModel):
     )
     site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='gains_goodies')
     goodie = models.ForeignKey(Goodie, on_delete=models.CASCADE, related_name='gains_sites')
+    hotesse = models.ForeignKey(
+        'RemoteUser',
+        on_delete=models.SET_NULL,
+        related_name='gains_goodies_commandes',
+        null=True,
+        blank=True,
+        help_text="Utilisateur connecté ayant enregistré le gain"
+    )
     
     # Enregistrement du produit associé au goodie au moment du gain (snapshot)
     produit_associe = models.ForeignKey(
