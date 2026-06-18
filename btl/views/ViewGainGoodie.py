@@ -31,6 +31,7 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
             'site',
             'site__campagne',
             'site__campagne__entreprise',
+            'hotesse',
             'produit_associe',
         ).order_by('-created_at')
         
@@ -103,6 +104,7 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
                 gain = GainGoodie.objects.create(
                     site=site,
                     goodie=goodie,
+                    hotesse=request.user,
                     produit_associe=goodie.produit_associe,
                     quantite_produit=quantite_produit,
                     nom_client=nom_client

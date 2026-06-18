@@ -86,7 +86,7 @@ class RapportPDFViewSet(viewsets.ViewSet):
         gains_goodies = (
             GainGoodie.objects
             .filter(site__campagne__entreprise=entreprise)
-            .select_related("goodie", "site", "degustation__hotesse", "promotion", "produit_associe")
+            .select_related("goodie", "site", "hotesse", "degustation__hotesse", "promotion", "produit_associe")
             .order_by("created_at")
         )
 
@@ -193,8 +193,11 @@ class RapportPDFViewSet(viewsets.ViewSet):
                     goodies_dist[perf_k][v.produit.nom] += v.quantite
 
         for g in gains_goodies:
-            # Identifier l'hôtesse : via la dégustation, ou via la Vente GRATUIT
+            # Identifier l'hôtesse : en priorité via le gain, puis via la dégustation
+            # ou via la Vente GRATUIT pour les anciennes données.
             hotesse_name = None
+            if g.hotesse:
+                hotesse_name = g.hotesse.name
             if g.degustation_id and g.degustation and g.degustation.hotesse:
                 hotesse_name = g.degustation.hotesse.name
             if not hotesse_name:
@@ -367,9 +370,9 @@ class RapportPDFViewSet(viewsets.ViewSet):
 
         # 5c. GainGoodie sans dégustation (gain manuel / lié à une Promotion)
         for g in goodies_sans_degustation:
-            # Tenter de trouver l'hôtesse via la Vente GRATUIT shadow
-            hotesse_journal = "—"
-            if g.produit_associe_id:
+            # Priorité au gain lui-même, puis fallback historique via Vente GRATUIT.
+            hotesse_journal = g.hotesse.name if g.hotesse else "—"
+            if hotesse_journal == "—" and g.produit_associe_id:
                 matching_v = next(
                     (v for v in ventes
                      if v.type_vente == Vente.TypeVente.GRATUIT

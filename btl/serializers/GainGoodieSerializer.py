@@ -7,19 +7,20 @@ class GainGoodieSerializer(serializers.ModelSerializer):
     site_nom = serializers.CharField(source='site.nom', read_only=True)
     campagne = serializers.UUIDField(source='site.campagne.id', read_only=True)
     campagne_nom = serializers.CharField(source='site.campagne.nom', read_only=True)
+    hotesse_nom = serializers.CharField(source='hotesse.name', read_only=True)
     produit_nom = serializers.CharField(source='produit_associe.nom', read_only=True)
     
     class Meta:
         model = GainGoodie
         fields = [
             'id', 'goodie', 'goodie_nom', 'site', 'site_nom',
-            'campagne', 'campagne_nom',
+            'campagne', 'campagne_nom', 'hotesse', 'hotesse_nom',
             'produit_associe', 'produit_nom', 'quantite_produit',
             'nom_client', 'created_at'
         ]
         read_only_fields = [
             'id', 'created_at', 'goodie_nom', 'site_nom',
-            'campagne', 'campagne_nom', 'produit_nom',
+            'campagne', 'campagne_nom', 'hotesse', 'hotesse_nom', 'produit_nom',
         ]
 
 
