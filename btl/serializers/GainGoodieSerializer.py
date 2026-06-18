@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Produit
+from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Produit, Promotion
 
 
 class GainGoodieSerializer(serializers.ModelSerializer):
@@ -16,7 +16,13 @@ class GainGoodieSerializer(serializers.ModelSerializer):
             'id', 'goodie', 'goodie_nom', 'site', 'site_nom',
             'campagne', 'campagne_nom', 'hotesse', 'hotesse_nom',
             'produit_associe', 'produit_nom', 'quantite_produit',
-            'nom_client', 'created_at'
+            'nom_client', 'promotion', 'promotion_nom',
+            'promotion_quantite_requise', 'promotion_quantite_offerte',
+            'created_at'
+        ]
+        read_only_fields = [
+            'id', 'created_at', 'goodie_nom', 'site_nom', 'produit_nom',
+            'promotion_nom', 'promotion_quantite_requise', 'promotion_quantite_offerte'
         ]
         read_only_fields = [
             'id', 'created_at', 'goodie_nom', 'site_nom',
@@ -39,6 +45,7 @@ class EnregistrerGainGoodieSerializer(serializers.Serializer):
     """
     goodie_id = serializers.UUIDField()
     site_id = serializers.UUIDField()
+    promotion_id = serializers.UUIDField(required=False, allow_null=True, default=None)
     nom_client = serializers.CharField(max_length=150, required=False, allow_blank=True)
     quantite_produit = serializers.IntegerField(min_value=1, required=False, default=1)
     
@@ -54,6 +61,15 @@ class EnregistrerGainGoodieSerializer(serializers.Serializer):
             Site.objects.get(id=value)
         except Site.DoesNotExist:
             raise serializers.ValidationError("Ce site n'existe pas.")
+        return value
+
+    def validate_promotion_id(self, value):
+        if value is None:
+            return value
+        try:
+            Promotion.objects.get(id=value)
+        except Promotion.DoesNotExist:
+            raise serializers.ValidationError("Cette promotion n'existe pas.")
         return value
     
     def validate(self, data):

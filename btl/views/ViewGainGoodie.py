@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.db.models import Q
 
-from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Vente, RemoteUser, Produit, Campagne
+from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Vente, RemoteUser, Produit, Campagne, Promotion
 from btl.permissions import IsPasswordChanged
 from btl.serializers.GainGoodieSerializer import GainGoodieSerializer, EnregistrerGainGoodieSerializer
 
@@ -79,6 +79,7 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
         
         goodie_id = serializer.validated_data['goodie_id']
         site_id = serializer.validated_data['site_id']
+        promotion_id = serializer.validated_data.get('promotion_id')
         nom_client = serializer.validated_data.get('nom_client', '').strip() or None
         quantite_produit = serializer.validated_data.get('quantite_produit', 1)
         
@@ -87,6 +88,7 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
                 # Récupérer les objets
                 goodie = Goodie.objects.get(id=goodie_id)
                 site = Site.objects.get(id=site_id)
+                promotion = Promotion.objects.get(id=promotion_id) if promotion_id else None
                 
                 # Vérifier et décompter le stock du goodie
                 stock = StockGoodieSite.objects.get(

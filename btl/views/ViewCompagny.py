@@ -111,6 +111,43 @@ class EntrepriseViewSet(viewsets.ModelViewSet):
 
         return Response(payload, status=status.HTTP_201_CREATED)
 
+    def partial_update(self, request, *args, **kwargs):
+        """
+        PATCH /api/entreprises/{id}/
+        Permet de modifier l'entreprise ET de mettre à jour ou ajouter ses produits associés.
+        """
+        entreprise = self.get_object()
+        
+        # On extrait les produits du payload pour les traiter à part
+        produits_data = request.data.pop('produits', None)
+        
+        # Validation et mise à jour des champs basiques de l'entreprise
+        serializer = self.get_serializer(entreprise, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        
+        with transaction.atomic():
+            serializer.save()
+            
+            # Si le champ 'produits' est présent dans la requête (même si la liste est vide `[]`)
+            if produits_data is not None:
+                # Option choisie : On nettoie les anciens produits pour appliquer la nouvelle liste
+                entreprise.produits.all().delete()
+                
+                if produits_data:
+                    Produit.objects.bulk_create([
+                        Produit(
+                            entreprise=entreprise,
+                            nom=p['nom'],
+                            description=p.get('description') or '',
+                            type_conditionnement=p.get('type_conditionnement', Produit.TypeConditionnement.UNITE),
+                            prix_indicatif=p.get('prix_indicatif'),
+                        )
+                        for p in produits_data
+                    ])
+
+        # On recharge l'instance et renvoie les données complètes (avec la nouvelle liste de produits)
+        return Response(EntrepriseSerializer(entreprise).data, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=['post'], url_path='resend-credentials',
             permission_classes=[IsAuthenticated, IsAdmin])
     def resend_credentials(self, request, pk=None):
@@ -191,7 +228,7 @@ class EntrepriseViewSet(viewsets.ModelViewSet):
             })
         
         # Statistiques goodies
-        total_goodies = entreprise.goodies.count()
+        total_goodies = Slab = entreprise.goodies.count()
         total_goodies_initial = StockGoodieSite.objects.filter(
             goodie__entreprise=entreprise
         ).aggregate(total=Sum('quantite_initiale'))['total'] or 0
@@ -236,18 +273,7 @@ class EntrepriseViewSet(viewsets.ModelViewSet):
             a_achete=True
         ).count()
         
-        # Ventes globales
-        total_ventes_normales = Vente.objects.filter(
-            hotesse__ventes__produit__entreprise=entreprise,
-            type_vente=Vente.TypeVente.NORMAL
-        ).distinct().aggregate(total=Sum('quantite'))['total'] or 0
-        
-        total_ventes_offertes = Vente.objects.filter(
-            hotesse__ventes__produit__entreprise=entreprise,
-            type_vente=Vente.TypeVente.GRATUIT
-        ).distinct().aggregate(total=Sum('quantite'))['total'] or 0
-        
-        # Simplification des requêtes de ventes
+        # Requêtes de ventes simplifiées et précises
         ventes_normales_qs = Vente.objects.filter(
             produit__entreprise=entreprise,
             type_vente=Vente.TypeVente.NORMAL
