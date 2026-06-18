@@ -24,10 +24,10 @@ class GainGoodieSerializer(serializers.ModelSerializer):
             'id', 'created_at', 'goodie_nom', 'site_nom', 'produit_nom',
             'promotion_nom', 'promotion_quantite_requise', 'promotion_quantite_offerte'
         ]
-        read_only_fields = [
-            'id', 'created_at', 'goodie_nom', 'site_nom',
-            'campagne', 'campagne_nom', 'hotesse', 'hotesse_nom', 'produit_nom',
-        ]
+        # read_only_fields = [
+        #     'id', 'created_at', 'goodie_nom', 'site_nom',
+        #     'campagne', 'campagne_nom', 'hotesse', 'hotesse_nom', 'produit_nom',
+        # ]
 
 
 class EnregistrerGainGoodieSerializer(serializers.Serializer):
