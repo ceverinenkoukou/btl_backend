@@ -269,7 +269,6 @@ class RapportPDFViewSet(viewsets.ViewSet):
 
         def find_triggering_row(event_time, site_nom, client, hotesse=None):
             candidates = []
-            same_day_previous = []
             for row in journal:
                 if row["volume_vendu"] <= 0:
                     continue
@@ -287,13 +286,8 @@ class RapportPDFViewSet(viewsets.ViewSet):
                 delta = abs(row["_time"] - event_time)
                 if delta <= merge_window:
                     candidates.append((delta, row))
-                if row["_time"] <= event_time and row["_time"].date() == event_time.date():
-                    same_day_previous.append((row["_time"], row))
             candidates.sort(key=lambda item: item[0])
-            if candidates:
-                return candidates[0][1]
-            same_day_previous.sort(key=lambda item: item[0], reverse=True)
-            return same_day_previous[0][1] if same_day_previous else None
+            return candidates[0][1] if candidates else None
 
         # 5a. Lignes basées sur une dégustation (lien direct, fiable)
         compteur_anonyme = 0
