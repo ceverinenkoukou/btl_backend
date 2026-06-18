@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('btl', '0019_historicalpromotion_quantite_offerte_and_more'),
+        ('btl', '0018_alter_historicalrapportjournalier_nb_goodies'),
     ]
 
     operations = [
