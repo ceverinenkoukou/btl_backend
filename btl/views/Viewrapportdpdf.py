@@ -243,6 +243,57 @@ class RapportPDFViewSet(viewsets.ViewSet):
         # ── 5. Journal des transactions (tableau 3) ───────────────────────────
 
         journal: list[dict] = []
+        merge_window = timedelta(minutes=10)
+
+        def normalize_client(value):
+            value = (value or "Client").strip()
+            lowered = value.lower()
+            for suffix in (" achat", " offert"):
+                if lowered.endswith(suffix):
+                    value = value[: -len(suffix)].strip()
+                    break
+            return " ".join(value.split()) or "Client"
+
+        def is_placeholder_client(value):
+            return value in ("Client", "Anonyme") or value.startswith("Client N°")
+
+        def merge_label(current, addition):
+            if not addition or addition == "—":
+                return current or "—"
+            if not current or current == "—":
+                return addition
+            parts = [p.strip() for p in current.split(",") if p.strip()]
+            if addition not in parts:
+                parts.append(addition)
+            return ", ".join(parts)
+
+        def find_triggering_row(event_time, site_nom, client, hotesse=None):
+            candidates = []
+            same_day_previous = []
+            for row in journal:
+                if row["volume_vendu"] <= 0:
+                    continue
+                if row["site"] != site_nom:
+                    continue
+                if hotesse and row["hotesse"] != hotesse:
+                    continue
+                same_client = (
+                    row["client"] == client
+                    or is_placeholder_client(row["client"])
+                    or is_placeholder_client(client)
+                )
+                if not same_client:
+                    continue
+                delta = abs(row["_time"] - event_time)
+                if delta <= merge_window:
+                    candidates.append((delta, row))
+                if row["_time"] <= event_time and row["_time"].date() == event_time.date():
+                    same_day_previous.append((row["_time"], row))
+            candidates.sort(key=lambda item: item[0])
+            if candidates:
+                return candidates[0][1]
+            same_day_previous.sort(key=lambda item: item[0], reverse=True)
+            return same_day_previous[0][1] if same_day_previous else None
 
         # 5a. Lignes basées sur une dégustation (lien direct, fiable)
         compteur_anonyme = 0
@@ -263,9 +314,10 @@ class RapportPDFViewSet(viewsets.ViewSet):
             journal.append({
                 "id": str(v.id),
                 "heure": v.created_at.strftime("%H:%M"),
+                "_time": v.created_at,
                 "hotesse": v.hotesse.name,
                 "site": v.site.nom,
-                "client": v.nom_client or f"Client N°{compteur_anonyme}",
+                "client": normalize_client(v.nom_client) if v.nom_client else f"Client N°{compteur_anonyme}",
                 "produit": v.produit.nom,
                 "volume_vendu": v.quantite,
                 "volume_offert": bucket["offert"],
@@ -280,13 +332,43 @@ class RapportPDFViewSet(viewsets.ViewSet):
             journal.append({
                 "id": str(v.id),
                 "heure": v.created_at.strftime("%H:%M"),
+                "_time": v.created_at,
                 "hotesse": v.hotesse.name,
                 "site": v.site.nom,
-                "client": v.nom_client or f"Client N°{compteur_anonyme}",
+                "client": normalize_client(v.nom_client) if v.nom_client else f"Client N°{compteur_anonyme}",
                 "produit": v.produit.nom,
                 "volume_vendu": v.quantite,
                 "volume_offert": 0,
                 "goodie_remporte": "—",
+            })
+
+        # 5b bis. Ventes offertes sans dégustation : les rattacher à la vente
+        # normale qui les a déclenchées quand elle existe.
+        for v in ventes_sans_degustation:
+            if v.type_vente == Vente.TypeVente.NORMAL:
+                continue
+
+            client = normalize_client(v.nom_client)
+            row = find_triggering_row(v.created_at, v.site.nom, client, v.hotesse.name)
+            if row:
+                if is_placeholder_client(row["client"]) and not is_placeholder_client(client):
+                    row["client"] = client
+                row["volume_offert"] += v.quantite
+                if v.type_vente == Vente.TypeVente.GRATUIT:
+                    row["goodie_remporte"] = merge_label(row["goodie_remporte"], v.produit.nom)
+                continue
+
+            journal.append({
+                "id": str(v.id),
+                "heure": v.created_at.strftime("%H:%M"),
+                "_time": v.created_at,
+                "hotesse": v.hotesse.name,
+                "site": v.site.nom,
+                "client": client,
+                "produit": v.produit.nom,
+                "volume_vendu": 0,
+                "volume_offert": v.quantite,
+                "goodie_remporte": v.produit.nom if v.type_vente == Vente.TypeVente.GRATUIT else "—",
             })
 
         # 5c. GainGoodie sans dégustation (gain manuel / lié à une Promotion)
@@ -315,26 +397,69 @@ class RapportPDFViewSet(viewsets.ViewSet):
                 )
                 if nearby_v:
                     hotesse_journal = nearby_v.hotesse.name
+            client = normalize_client(g.nom_client)
+            row = find_triggering_row(
+                g.created_at,
+                g.site.nom,
+                client,
+                None if hotesse_journal == "—" else hotesse_journal,
+            )
+            already_counted_by_free_sale = any(
+                v.type_vente == Vente.TypeVente.GRATUIT
+                and v.site_id == g.site_id
+                and (not g.produit_associe_id or v.produit_id == g.produit_associe_id)
+                and abs(v.created_at - g.created_at) <= merge_window
+                for v in ventes
+            )
+            if row:
+                if is_placeholder_client(row["client"]) and not is_placeholder_client(client):
+                    row["client"] = client
+                if not already_counted_by_free_sale:
+                    row["volume_offert"] += g.quantite_produit
+                row["goodie_remporte"] = merge_label(row["goodie_remporte"], g.goodie.nom)
+                continue
+
             journal.append({
                 "id": str(g.id),
                 "heure": g.created_at.strftime("%H:%M"),
+                "_time": g.created_at,
                 "hotesse": hotesse_journal,
                 "site": g.site.nom,
-                "client": g.nom_client or "Anonyme",
+                "client": client,
                 "produit": g.produit_associe.nom if g.produit_associe else "—",
                 "volume_vendu": 0,
-                "volume_offert": 0,
+                "volume_offert": 0 if already_counted_by_free_sale else g.quantite_produit,
                 "goodie_remporte": g.goodie.nom,
             })
 
-        # 5d. GainPromotion (mécanique indépendante, toujours sa propre ligne)
+        # 5d. GainPromotion : fusionné avec la vente normale déclencheuse si elle
+        # existe, sinon affiché comme ligne indépendante.
         for gp in gains_promotions:
+            client = normalize_client(gp.nom_client)
+            row = find_triggering_row(gp.created_at, gp.site.nom, client, gp.hotesse.name)
+            already_counted_by_promo_sale = any(
+                v.type_vente == Vente.TypeVente.PROMOTION
+                and v.site_id == gp.site_id
+                and v.hotesse_id == gp.hotesse_id
+                and normalize_client(v.nom_client) == client
+                and abs(v.created_at - gp.created_at) <= merge_window
+                for v in ventes
+            )
+            if row:
+                if is_placeholder_client(row["client"]) and not is_placeholder_client(client):
+                    row["client"] = client
+                if not already_counted_by_promo_sale:
+                    row["volume_offert"] += gp.promotion.quantite_offerte
+                row["goodie_remporte"] = merge_label(row["goodie_remporte"], gp.promotion.recompense_description)
+                continue
+
             journal.append({
                 "id": str(gp.id),
                 "heure": gp.created_at.strftime("%H:%M"),
+                "_time": gp.created_at,
                 "hotesse": gp.hotesse.name,
                 "site": gp.site.nom,
-                "client": gp.nom_client or "Anonyme",
+                "client": client,
                 "produit": "—",
                 "volume_vendu": gp.quantite_produits_concernes,
                 "volume_offert": gp.promotion.quantite_offerte,
@@ -358,11 +483,15 @@ class RapportPDFViewSet(viewsets.ViewSet):
             "couleur_primaire": entreprise.couleur_primaire or "#065f46",
             "couleur_secondaire": entreprise.couleur_secondaire or "#0d9488",
         }
+        journal_public = [
+            {k: v for k, v in row.items() if k != "_time"}
+            for row in sorted(journal, key=lambda x: x["_time"])
+        ]
 
         return Response({
             "meta": meta,
             "performances": list(perf.values()),
             "goodies_distribution": {k: dict(d) for k, d in goodies_dist.items()},
-            "journal": sorted(journal, key=lambda x: x["heure"]),
+            "journal": journal_public,
             "totaux": totaux,
         })
