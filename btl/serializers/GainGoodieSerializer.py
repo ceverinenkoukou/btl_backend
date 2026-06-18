@@ -8,6 +8,9 @@ class GainGoodieSerializer(serializers.ModelSerializer):
     campagne = serializers.UUIDField(source='site.campagne.id', read_only=True)
     campagne_nom = serializers.CharField(source='site.campagne.nom', read_only=True)
     hotesse_nom = serializers.CharField(source='hotesse.name', read_only=True)
+    promotion_nom = serializers.CharField(source='promotion.recompense_description', read_only=True)
+    promotion_quantite_requise = serializers.IntegerField(source='promotion.quantite_requise', read_only=True)
+    promotion_quantite_offerte = serializers.IntegerField(source='promotion.quantite_offerte', read_only=True)
     produit_nom = serializers.CharField(source='produit_associe.nom', read_only=True)
     
     class Meta:
@@ -15,18 +18,17 @@ class GainGoodieSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'goodie', 'goodie_nom', 'site', 'site_nom',
             'campagne', 'campagne_nom', 'hotesse', 'hotesse_nom',
+            'promotion', 'promotion_nom',
             'produit_associe', 'produit_nom', 'quantite_produit',
-            'nom_client', 'promotion', 'promotion_nom',
+            'nom_client',
             'promotion_quantite_requise', 'promotion_quantite_offerte',
             'created_at'
         ]
         read_only_fields = [
-            'id', 'created_at', 'goodie_nom', 'site_nom', 'produit_nom',
-            'promotion_nom', 'promotion_quantite_requise', 'promotion_quantite_offerte'
-        ]
-        read_only_fields = [
             'id', 'created_at', 'goodie_nom', 'site_nom',
-            'campagne', 'campagne_nom', 'hotesse', 'hotesse_nom', 'produit_nom',
+            'campagne', 'campagne_nom', 'hotesse', 'hotesse_nom',
+            'promotion', 'promotion_nom', 'promotion_quantite_requise',
+            'promotion_quantite_offerte', 'produit_nom',
         ]
 
 
