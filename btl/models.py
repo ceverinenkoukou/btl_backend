@@ -186,6 +186,25 @@ class Campagne(BaseModel):
         help_text="Définit si la campagne implique des goodies ou des mécaniques promotionnelles."
     )
 
+    note_gout_active = models.BooleanField(
+        default=False,
+        help_text="Active la saisie de la note du goût dans le formulaire de dégustation"
+    )
+    note_gout_max = models.PositiveSmallIntegerField(
+        default=5,
+        choices=[(5, '1 à 5'), (10, '1 à 10')],
+        help_text="Échelle de notation du goût"
+    )
+    note_ambiance_active = models.BooleanField(
+        default=False,
+        help_text="Active la saisie de la note d'ambiance dans le formulaire de dégustation"
+    )
+    note_ambiance_max = models.PositiveSmallIntegerField(
+        default=5,
+        choices=[(5, '1 à 5'), (10, '1 à 10')],
+        help_text="Échelle de notation de l'ambiance"
+    )
+
     date_debut = models.DateField()
     date_fin = models.DateField()
     description = models.TextField(blank=True, null=True)
@@ -294,8 +313,14 @@ class Degustation(BaseModel):
     tranche_age = models.CharField(max_length=20, choices=TrancheAge.choices)
 
     note_gout = models.PositiveSmallIntegerField(
-        help_text="Note entre 0 et 5 (0 = non évalué)",
-        validators=[MinValueValidator(0), MaxValueValidator(5)]
+        null=True, blank=True,
+        help_text="Note du goût (configurable par campagne, null si non activé)",
+        validators=[MinValueValidator(0), MaxValueValidator(10)]
+    )
+    note_ambiance = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text="Note d'ambiance (configurable par campagne, null si non activé)",
+        validators=[MinValueValidator(0), MaxValueValidator(10)]
     )
     intention_achat = models.CharField(max_length=20, choices=IntentionAchat.choices)
 
