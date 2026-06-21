@@ -39,7 +39,8 @@ class DegustationSerializer(serializers.ModelSerializer):
     # Expose la vente associée en lecture
     vente = serializers.SerializerMethodField()
 
-    note_gout = serializers.IntegerField(min_value=0, max_value=5)
+    note_gout     = serializers.IntegerField(min_value=0, max_value=10, required=False, allow_null=True)
+    note_ambiance = serializers.IntegerField(min_value=0, max_value=10, required=False, allow_null=True)
 
     class Meta:
         model = Degustation
@@ -53,7 +54,7 @@ class DegustationSerializer(serializers.ModelSerializer):
             # Infos client
             'nom_client', 'tranche_age', 'tranche_age_display',
             # Évaluation
-            'note_gout', 'intention_achat', 'intention_achat_display',
+            'note_gout', 'note_ambiance', 'intention_achat', 'intention_achat_display',
             # Achat
             'a_achete', 'conditionnement', 'quantite',
             # Vente créée

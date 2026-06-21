@@ -12,6 +12,18 @@ class GainGoodieSerializer(serializers.ModelSerializer):
     promotion_quantite_requise = serializers.IntegerField(source='promotion.quantite_requise', read_only=True)
     promotion_quantite_offerte = serializers.IntegerField(source='promotion.quantite_offerte', read_only=True)
     produit_nom = serializers.CharField(source='produit_associe.nom', read_only=True)
+    promotion_nom = serializers.SerializerMethodField()
+    promotion_quantite_requise = serializers.SerializerMethodField()
+    promotion_quantite_offerte = serializers.SerializerMethodField()
+
+    def get_promotion_nom(self, obj):
+        return obj.promotion.recompense_description if obj.promotion else None
+
+    def get_promotion_quantite_requise(self, obj):
+        return obj.promotion.quantite_requise if obj.promotion else None
+
+    def get_promotion_quantite_offerte(self, obj):
+        return obj.promotion.quantite_offerte if obj.promotion else None
     
     class Meta:
         model = GainGoodie

@@ -51,6 +51,10 @@ class BaseModel(models.Model):
     class Meta:
         abstract = True
         ordering = ["-created_at"]
+        # Indique à Django d'utiliser le manager non-filtré pour les opérations
+        # internes (CASCADE, prefetch_related, etc.) afin de ne pas rater les
+        # objets soft-deletés lors des suppressions en cascade.
+        base_manager_name = 'all_objects'
 
     def get_full_history(self):
         return self.history.all().order_by("-history_date")

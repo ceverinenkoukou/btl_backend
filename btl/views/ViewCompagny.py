@@ -148,6 +148,67 @@ class EntrepriseViewSet(viewsets.ModelViewSet):
         # On recharge l'instance et renvoie les données complètes (avec la nouvelle liste de produits)
         return Response(EntrepriseSerializer(entreprise).data, status=status.HTTP_200_OK)
 
+    def destroy(self, request, *args, **kwargs):
+        """
+        DELETE /api/entreprises/{id}/
+        Suppression définitive (hard delete) de l'entreprise et de TOUTES ses données :
+        campagnes, sites, dégustations, ventes, goodies, rapports, produits
+        et compte utilisateur de l'entreprise.
+
+        On utilise all_objects (manager non-filtré) à chaque étape pour inclure
+        les objets préalablement soft-deletés qui seraient ratés par la cascade
+        Django si _base_manager était le SoftDeleteManager filtrant.
+
+        Les comptes hôtesses et superviseurs sont conservés (ressources système
+        indépendantes, réaffectables à d'autres campagnes).
+        """
+        from btl.models import (
+            Site, Campagne, Degustation, Vente,
+            GainGoodie, GainPromotion, RapportJournalier,
+            StockGoodieSite, Goodie, Produit, Promotion,
+        )
+
+        entreprise = self.get_object()
+
+        with transaction.atomic():
+            # 1. Collecter toutes les campagnes (y compris soft-deletées)
+            camp_ids = list(
+                Campagne.all_objects.filter(entreprise=entreprise)
+                .values_list('id', flat=True)
+            )
+
+            # 2. Collecter tous les sites de ces campagnes
+            site_ids = list(
+                Site.all_objects.filter(campagne_id__in=camp_ids)
+                .values_list('id', flat=True)
+            ) if camp_ids else []
+
+            # 3. Supprimer les sites + toutes leurs données liées via la cascade
+            #    Django ORM (avec base_manager_name='all_objects') gère automatiquement :
+            #    Degustation, Vente, GainGoodie, GainPromotion, RapportJournalier,
+            #    StockGoodieSite, ObjectifSite, SiteProduitPrix et les tables M2M
+            #    (site_hotesses, site_superviseurs, promotion_sites).
+            if site_ids:
+                Site.all_objects.filter(id__in=site_ids).delete()
+
+            # 4. Supprimer les goodies AVANT les campagnes
+            #    (Goodie.campagne_id est une FK vers Campagne)
+            Goodie.all_objects.filter(entreprise=entreprise).delete()
+
+            # 5. Supprimer promotions puis campagnes (cascade gère les tables M2M)
+            if camp_ids:
+                Promotion.all_objects.filter(campagne_id__in=camp_ids).delete()
+                Campagne.all_objects.filter(id__in=camp_ids).delete()
+
+            # 6. Supprimer les produits
+            Produit.all_objects.filter(entreprise=entreprise).delete()
+
+            # 7. Supprimer le compte utilisateur de l'entreprise
+            #    (cascade automatique vers l'objet Entreprise via OneToOneField)
+            entreprise.user.hard_delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=True, methods=['post'], url_path='resend-credentials',
             permission_classes=[IsAuthenticated, IsAdmin])
     def resend_credentials(self, request, pk=None):
