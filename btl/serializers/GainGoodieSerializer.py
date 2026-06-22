@@ -90,7 +90,18 @@ class EnregistrerGainGoodieSerializer(serializers.Serializer):
         """Valider que le goodie existe sur ce site avec stock disponible."""
         goodie_id = data.get('goodie_id')
         site_id = data.get('site_id')
-        
+        promotion_id = data.get('promotion_id')
+
+        # Pour les promotions TIRAGE et GAGNE, les goodies sont gérés au niveau de la campagne
+        # et non par stock par site — on skip la vérification StockGoodieSite.
+        if promotion_id:
+            try:
+                promo = Promotion.objects.get(id=promotion_id)
+                if promo.type_promotion in ('TIRAGE', 'GAGNE'):
+                    return data
+            except Promotion.DoesNotExist:
+                pass
+
         try:
             stock = StockGoodieSite.objects.get(
                 goodie_id=goodie_id,
@@ -104,5 +115,5 @@ class EnregistrerGainGoodieSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Ce goodie n'est pas disponible sur ce site."
             )
-        
+
         return data

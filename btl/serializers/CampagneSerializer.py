@@ -34,11 +34,16 @@ class CampagneListSerializer(serializers.ModelSerializer):
 
 class PromotionInlineSerializer(serializers.ModelSerializer):
     type_promotion_display = serializers.CharField(source='get_type_promotion_display', read_only=True)
+    goodies_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Promotion
         fields = ['id', 'type_promotion', 'type_promotion_display',
-                  'quantite_requise', 'recompense_description', 'is_active']
+                  'quantite_requise', 'recompense_description', 'is_active',
+                  'goodies_details']
+
+    def get_goodies_details(self, obj):
+        return [{'id': str(g.id), 'nom': g.nom} for g in obj.goodies.all()]
 
 
 class CampagneDetailSerializer(serializers.ModelSerializer):

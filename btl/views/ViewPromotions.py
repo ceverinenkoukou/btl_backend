@@ -119,7 +119,7 @@ class PromotionViewSet(viewsets.ModelViewSet):
                     hotesse=user,
                     site=site,
                     produit=produit,
-                    conditionnement=Vente.TypeConditionnement.UNITE,
+                    conditionnement=promotion.conditionnement,
                     quantite=promotion.quantite_requise,
                     type_vente=Vente.TypeVente.NORMAL,
                     nom_client=nom_client,
@@ -130,13 +130,14 @@ class PromotionViewSet(viewsets.ModelViewSet):
                     "quantite": promotion.quantite_requise,
                 })
 
-                # 2. Vente PROMOTION : le produit offert (si type OFFERT)
+                # 2. Vente PROMOTION : le produit offert (si type OFFERT uniquement)
+                # TIRAGE ne génère pas de vente produit — la récompense passe par la roue
                 if promotion.type_promotion == Promotion.TypePromotion.OFFERT:
                     vente_offerte = Vente.objects.create(
                         hotesse=user,
                         site=site,
                         produit=produit,
-                        conditionnement=Vente.TypeConditionnement.UNITE,
+                        conditionnement=promotion.conditionnement,
                         quantite=promotion.quantite_offerte,
                         type_vente=Vente.TypeVente.PROMOTION,
                         nom_client=nom_client,
@@ -147,10 +148,21 @@ class PromotionViewSet(viewsets.ModelViewSet):
                         "quantite": promotion.quantite_offerte,
                     })
 
+        # Préparer les données de tirage si applicable
+        tirage_disponible = promotion.type_promotion == Promotion.TypePromotion.TIRAGE
+        goodies_roue = []
+        if tirage_disponible:
+            goodies_roue = [
+                {"id": str(g.id), "nom": g.nom}
+                for g in promotion.goodies.all()
+            ]
+
         return Response({
             "detail": "Gain enregistré avec succès.",
             "gain_id": str(gain.id),
             "recompense": promotion.recompense_description,
             "quantite_produits_concernes": gain.quantite_produits_concernes,
             "ventes": ventes_creees,
+            "tirage_disponible": tirage_disponible,
+            "goodies_roue": goodies_roue,
         }, status=status.HTTP_201_CREATED)

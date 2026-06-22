@@ -374,8 +374,9 @@ class Promotion(BaseModel):
     """Règle promotionnelle liée à une campagne de type PROMOTIONS."""
 
     class TypePromotion(models.TextChoices):
-        OFFERT = "OFFERT", "Produit offert"
-        GAGNE  = "GAGNE",  "À gagner / Bon cadeau"
+        OFFERT  = "OFFERT",  "Produit offert"
+        GAGNE   = "GAGNE",   "À gagner / Bon cadeau"
+        TIRAGE  = "TIRAGE",  "Tirage à la roue"
 
     campagne = models.ForeignKey(
         Campagne, on_delete=models.CASCADE, related_name='promotions'
@@ -388,6 +389,12 @@ class Promotion(BaseModel):
     )
     type_promotion = models.CharField(
         max_length=10, choices=TypePromotion.choices, default=TypePromotion.OFFERT
+    )
+    conditionnement = models.CharField(
+        max_length=10,
+        choices=Produit.TypeConditionnement.choices,
+        default=Produit.TypeConditionnement.UNITE,
+        help_text="Conditionnement requis pour déclencher la promotion : unité ou pack"
     )
     quantite_requise = models.PositiveIntegerField(
         default=1, help_text="Nombre de produits à acheter pour déclencher la promotion"

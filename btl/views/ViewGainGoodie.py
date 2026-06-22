@@ -89,18 +89,20 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
                 goodie = Goodie.objects.get(id=goodie_id)
                 site = Site.objects.get(id=site_id)
                 promotion = Promotion.objects.get(id=promotion_id) if promotion_id else None
-                
-                # Vérifier et décompter le stock du goodie
-                stock = StockGoodieSite.objects.get(
-                    goodie=goodie,
-                    site=site
-                )
-                
-                if not stock.distribuer(1):
-                    return Response(
-                        {"detail": "Stock insuffisant pour ce goodie."},
-                        status=status.HTTP_400_BAD_REQUEST
+                is_promo_wheel = promotion and promotion.type_promotion in ('TIRAGE', 'GAGNE')
+
+                stock = None
+                if not is_promo_wheel:
+                    # Vérifier et décompter le stock du goodie (OFFERT uniquement)
+                    stock = StockGoodieSite.objects.get(
+                        goodie=goodie,
+                        site=site
                     )
+                    if not stock.distribuer(1):
+                        return Response(
+                            {"detail": "Stock insuffisant pour ce goodie."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
                 
                 # Créer l'enregistrement du gain
                 gain = GainGoodie.objects.create(
@@ -131,7 +133,7 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
                     {
                         "detail": f"Goodie '{goodie.nom}' remporté avec succès.",
                         "gain": serializer.data,
-                        "stock_restant": stock.quantite_restante,
+                        "stock_restant": stock.quantite_restante if stock else None,
                         "produit_associe": {
                             "nom": goodie.produit_associe.nom if goodie.produit_associe else None,
                             "quantite_remise": quantite_produit

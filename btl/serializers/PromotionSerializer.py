@@ -6,6 +6,9 @@ class PromotionSerializer(serializers.ModelSerializer):
     type_promotion_display = serializers.CharField(
         source='get_type_promotion_display', read_only=True
     )
+    conditionnement_display = serializers.CharField(
+        source='get_conditionnement_display', read_only=True
+    )
     sites = serializers.PrimaryKeyRelatedField(
         queryset=Site.objects.all(),
         many=True,
@@ -25,6 +28,7 @@ class PromotionSerializer(serializers.ModelSerializer):
             'id', 'campagne',
             'sites', 'sites_noms',
             'type_promotion', 'type_promotion_display',
+            'conditionnement', 'conditionnement_display',
             'quantite_requise', 'quantite_offerte', 'recompense_description',
             'is_active', 'goodies', 'goodies_details', 'created_at',
         ]
