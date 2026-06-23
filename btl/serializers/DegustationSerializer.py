@@ -16,12 +16,17 @@ class DegustationSerializer(serializers.ModelSerializer):
     """
 
     # --- Champs en lecture seule (affichage) ---
+    hotesse = serializers.UUIDField(source='hotesse.id', read_only=True)
     hotesse_nom = serializers.CharField(source='hotesse.name', read_only=True)
     campagne_nom = serializers.CharField(source='campagne.nom', read_only=True)
     site_nom = serializers.CharField(source='site.nom', read_only=True)
     produit_nom = serializers.CharField(source='produit.nom', read_only=True)
     tranche_age_display = serializers.CharField(source='get_tranche_age_display', read_only=True)
     intention_achat_display = serializers.CharField(source='get_intention_achat_display', read_only=True)
+    genre_display = serializers.CharField(source='get_genre_display', read_only=True)
+
+    # Champ nullable en base (compatibilité anciennes saisies) mais requis pour toute nouvelle dégustation
+    genre = serializers.ChoiceField(choices=Degustation.Genre.choices, required=True)
 
     # --- Champs d'achat : write-only, gérés dans create() ---
     conditionnement = serializers.ChoiceField(
@@ -49,10 +54,10 @@ class DegustationSerializer(serializers.ModelSerializer):
             # Contexte
             'site', 'site_nom',
             'campagne_nom',
-            'hotesse_nom',
+            'hotesse', 'hotesse_nom',
             'produit', 'produit_nom',
             # Infos client
-            'nom_client', 'tranche_age', 'tranche_age_display',
+            'nom_client', 'tranche_age', 'tranche_age_display', 'genre', 'genre_display',
             # Évaluation
             'note_gout', 'note_ambiance', 'intention_achat', 'intention_achat_display',
             # Achat

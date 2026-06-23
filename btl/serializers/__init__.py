@@ -19,4 +19,9 @@ from .GainGoodieSerializer import GainGoodieSerializer, EnregistrerGainGoodieSer
 from .GainPromotionSerializer import GainPromotionSerializer
 from .ObjectifSiteSerializer import ObjectifSiteSerializer, ObjectifSiteWriteSerializer
 from .RapportJournalierSerializer import RapportJournalierSerializer
+from .RapportJournalierConfigSerializer import RapportJournalierConfigSerializer
 from .SiteProduitPrixSerializer import SiteProduitPrixSerializer
+from .JourAnimationSerializer import JourAnimationSerializer
+from .RapportConfigSerializer import RapportConfigSerializer
+from .PointageSerializer import PointageSerializer, PointerArriveeSerializer, PointerDepartSerializer
+from .LivraisonGoodiesJourSerializer import LivraisonGoodiesJourSerializer
