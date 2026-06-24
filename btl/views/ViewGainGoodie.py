@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.db.models import Q
 
-from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Vente, RemoteUser, Produit, Campagne, Promotion
+from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Vente, RemoteUser, Produit, Campagne, Promotion, Degustation
 from btl.permissions import IsPasswordChanged
 from btl.serializers.GainGoodieSerializer import GainGoodieSerializer, EnregistrerGainGoodieSerializer
 
@@ -80,9 +80,15 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
         goodie_id = serializer.validated_data['goodie_id']
         site_id = serializer.validated_data['site_id']
         promotion_id = serializer.validated_data.get('promotion_id')
+        degustation_id = serializer.validated_data.get('degustation_id')
         nom_client = serializer.validated_data.get('nom_client', '').strip() or None
         quantite_produit = serializer.validated_data.get('quantite_produit', 1)
-        
+
+        # Dégustation d'origine (optionnelle), pour traçabilité du gain.
+        degustation = None
+        if degustation_id:
+            degustation = Degustation.objects.filter(id=degustation_id, hotesse=request.user).first()
+
         try:
             with transaction.atomic():
                 # Récupérer les objets
@@ -106,6 +112,7 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
                 
                 # Créer l'enregistrement du gain
                 gain = GainGoodie.objects.create(
+                    degustation=degustation,
                     site=site,
                     goodie=goodie,
                     hotesse=request.user,
