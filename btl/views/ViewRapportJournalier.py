@@ -6,7 +6,7 @@ from django.db.models import Q, Count
 
 from btl.models import (
     RapportJournalier, RemoteUser, Degustation, Vente, GainGoodie,
-    LivraisonGoodiesJour, StockGoodieSite, GainPromotion, Promotion,
+    LivraisonGoodiesJour, StockGoodieSite, GainPromotion, Promotion, DonneesSiteJour,
 )
 from btl.permissions import IsAdmin, IsSuperviseurOrAdmin, IsPasswordChanged
 from btl.serializers import RapportJournalierSerializer
@@ -106,6 +106,12 @@ class RapportJournalierViewSet(viewsets.mixins.ListModelMixin,
             for row in StockGoodieSite.objects.filter(site=site).values('goodie__nom', 'quantite_restante')
         ]
 
+        # ── Données du site ce jour-là (stock boissons, boissons gratuites) ──
+        # Saisies par site/jour (indépendantes de l'hôtesse) par admin/superviseur.
+        donnees_site = DonneesSiteJour.objects.filter(site=site, date=date).first()
+        stock_boissons = donnees_site.stock_boissons if donnees_site else None
+        nombre_boissons_gratuites = donnees_site.nombre_boissons_gratuites if donnees_site else None
+
         # ── Ventes hors promo (normales) ───────────────────────────────
         ventes_hors_promo = Vente.objects.filter(
             site=site, hotesse=hotesse, created_at__date=date, type_vente=Vente.TypeVente.NORMAL,
@@ -138,6 +144,8 @@ class RapportJournalierViewSet(viewsets.mixins.ListModelMixin,
             'ugs_restants': ugs_restants,
             'ventes_hors_promo': ventes_hors_promo,
             'ventes_promo_detail': ventes_promo_detail,
+            'stock_boissons': stock_boissons,
+            'nombre_boissons_gratuites': nombre_boissons_gratuites,
         })
 
     @action(detail=False, methods=['post'], url_path='generer',

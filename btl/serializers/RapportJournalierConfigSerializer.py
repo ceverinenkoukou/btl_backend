@@ -14,6 +14,8 @@ class RapportJournalierConfigSerializer(serializers.ModelSerializer):
             "configure_par_nom",
             "show_pointage",
             "show_stock",
+            "show_stock_boissons",
+            "show_boissons_gratuites",
             "show_ventes_detail",
             "show_ugs_recus",
             "show_ugs_distribues",

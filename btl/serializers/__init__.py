@@ -25,3 +25,4 @@ from .JourAnimationSerializer import JourAnimationSerializer
 from .RapportConfigSerializer import RapportConfigSerializer
 from .PointageSerializer import PointageSerializer, PointerArriveeSerializer, PointerDepartSerializer
 from .LivraisonGoodiesJourSerializer import LivraisonGoodiesJourSerializer
+from .DonneesSiteJourSerializer import DonneesSiteJourSerializer

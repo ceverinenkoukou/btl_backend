@@ -68,8 +68,8 @@ class RapportConfigInline(admin.StackedInline):
         }),
         ('KPIs de synthèse', {
             'fields': (
-                'show_kpi_degustations', 'show_kpi_ventes', 'show_kpi_ca',
-                'show_kpi_goodies', 'show_kpi_sites',
+                'show_kpi_degustations', 'show_kpi_ventes', 'show_kpi_ventes_hors_promo',
+                'show_kpi_ca', 'show_kpi_goodies', 'show_kpi_sites',
             ),
         }),
         ('Sections du rapport', {
@@ -110,7 +110,7 @@ class RapportJournalierConfigInline(admin.StackedInline):
         (None, {'fields': ('configure_par',)}),
         ('Sections du bulletin journalier', {
             'fields': (
-                'show_pointage', 'show_stock', 'show_ventes_detail',
+                'show_pointage', 'show_stock', 'show_stock_boissons', 'show_boissons_gratuites', 'show_ventes_detail',
                 'show_ugs_recus', 'show_ugs_distribues', 'show_ugs_restants',
                 'show_degustation', 'show_genre', 'show_personnes_touchees',
                 'show_avis_consommateurs', 'show_observation_generale',
@@ -194,8 +194,8 @@ class RapportConfigAdmin(admin.ModelAdmin):
         }),
         ('KPIs de synthèse', {
             'fields': (
-                'show_kpi_degustations', 'show_kpi_ventes', 'show_kpi_ca',
-                'show_kpi_goodies', 'show_kpi_sites',
+                'show_kpi_degustations', 'show_kpi_ventes', 'show_kpi_ventes_hors_promo',
+                'show_kpi_ca', 'show_kpi_goodies', 'show_kpi_sites',
             ),
         }),
         ('Sections du rapport', {
@@ -242,7 +242,7 @@ class RapportJournalierConfigAdmin(admin.ModelAdmin):
         (None, {'fields': ('campagne', 'configure_par')}),
         ('Sections du bulletin journalier', {
             'fields': (
-                'show_pointage', 'show_stock', 'show_ventes_detail',
+                'show_pointage', 'show_stock', 'show_stock_boissons', 'show_boissons_gratuites', 'show_ventes_detail',
                 'show_ugs_recus', 'show_ugs_distribues', 'show_ugs_restants',
                 'show_degustation', 'show_genre', 'show_personnes_touchees',
                 'show_avis_consommateurs', 'show_observation_generale',

@@ -640,6 +640,8 @@ class RapportJournalierConfig(BaseModel):
 
     show_pointage = models.BooleanField(default=True, help_text="Section : Heures d'arrivée / départ")
     show_stock = models.BooleanField(default=True, help_text="Section : Stock magasin en début de journée")
+    show_stock_boissons = models.BooleanField(default=True, help_text="Section : Stock de boissons du site")
+    show_boissons_gratuites = models.BooleanField(default=True, help_text="Section : Nombre de boissons gratuites distribuées")
     show_ventes_detail = models.BooleanField(default=True, help_text="Section : Détail des ventes (promo / hors promo)")
     show_ugs_recus = models.BooleanField(default=True, help_text="Section : UGs (goodies) reçus sur le site")
     show_ugs_distribues = models.BooleanField(default=True, help_text="Section : UGs (goodies) distribués")
@@ -681,8 +683,9 @@ class RapportConfig(BaseModel):
     )
 
     # ── KPIs de synthèse ─────────────────────────────────────────
-    show_kpi_degustations = models.BooleanField(default=True, help_text="Afficher le KPI consommations")
-    show_kpi_ventes = models.BooleanField(default=True, help_text="Afficher le KPI distributions/ventes")
+    show_kpi_degustations = models.BooleanField(default=True, help_text="Afficher le KPI ventes")
+    show_kpi_ventes = models.BooleanField(default=True, help_text="Afficher le KPI produits offerts")
+    show_kpi_ventes_hors_promo = models.BooleanField(default=True, help_text="Afficher le KPI ventes hors promotion")
     show_kpi_ca = models.BooleanField(default=True, help_text="Afficher le KPI chiffre d'affaires")
     show_kpi_goodies = models.BooleanField(default=True, help_text="Afficher le KPI goodies distribués")
     show_kpi_sites = models.BooleanField(default=True, help_text="Afficher le KPI nombre de sites actifs")
@@ -839,3 +842,34 @@ class LivraisonGoodiesJour(BaseModel):
     @property
     def restants_du_jour(self):
         return max(0, self.quantite_apportee - self.gains_du_jour)
+
+
+class DonneesSiteJour(BaseModel):
+    """Données journalières saisies par site (admin/superviseur), indépendantes de
+    l'hôtesse présente : stock de boissons disponible et nombre de boissons offertes
+    gratuitement."""
+    site = models.ForeignKey(
+        Site, on_delete=models.CASCADE, related_name='donnees_jour'
+    )
+    date = models.DateField(help_text="Date des données")
+    stock_boissons = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Stock de boissons disponible sur le site (saisie manuelle)"
+    )
+    nombre_boissons_gratuites = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Nombre de boissons offertes gratuitement sur le site (saisie manuelle)"
+    )
+    enregistre_par = models.ForeignKey(
+        RemoteUser, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='donnees_sites_jour_enregistrees'
+    )
+
+    class Meta:
+        unique_together = ('site', 'date')
+        ordering = ['-date']
+        verbose_name = "Données site (jour)"
+        verbose_name_plural = "Données sites (jour)"
+
+    def __str__(self):
+        return f"Données {self.site.nom} — {self.date}"

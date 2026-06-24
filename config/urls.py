@@ -45,6 +45,7 @@ from btl.views.ViewRapportConfig import RapportConfigViewSet
 from btl.views.ViewRapportJournalierConfig import RapportJournalierConfigViewSet
 from btl.views.ViewPointage import PointageViewSet
 from btl.views.ViewLivraisonGoodiesJour import LivraisonGoodiesJourViewSet
+from btl.views.ViewDonneesSiteJour import DonneesSiteJourViewSet
 
 router = DefaultRouter()
 router.register(r'users', RemoteUserViewSet, basename='user')
@@ -67,6 +68,7 @@ router.register(r'rapport-configs', RapportConfigViewSet, basename='rapport-conf
 router.register(r'rapport-journalier-configs', RapportJournalierConfigViewSet, basename='rapport-journalier-config')
 router.register(r'pointages', PointageViewSet, basename='pointage')
 router.register(r'livraisons-goodies', LivraisonGoodiesJourViewSet, basename='livraison-goodie')
+router.register(r'donnees-site-jour', DonneesSiteJourViewSet, basename='donnees-site-jour')
 
 urlpatterns = [
     path("admin/", admin.site.urls),
