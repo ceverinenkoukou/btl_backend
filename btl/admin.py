@@ -78,6 +78,7 @@ class RapportConfigInline(admin.StackedInline):
                 'show_section_perf_hotesses', 'show_section_perf_sites',
                 'show_section_goodies_par_site', 'show_section_offres_par_hotesse',
                 'show_section_detail_degustations', 'show_section_horaires_sites',
+                'show_section_stock_boissons', 'show_section_ugs_livraisons',
             ),
         }),
         ('Colonnes des tableaux', {
@@ -112,7 +113,7 @@ class RapportJournalierConfigInline(admin.StackedInline):
             'fields': (
                 'show_pointage', 'show_stock', 'show_stock_boissons', 'show_boissons_gratuites', 'show_ventes_detail',
                 'show_ugs_recus', 'show_ugs_distribues', 'show_ugs_restants',
-                'show_degustation', 'show_genre', 'show_personnes_touchees',
+                'show_degustation', 'show_genre', 'show_tranche_age', 'show_notes_degustation', 'show_personnes_touchees',
                 'show_avis_consommateurs', 'show_observation_generale',
             ),
         }),
@@ -204,6 +205,7 @@ class RapportConfigAdmin(admin.ModelAdmin):
                 'show_section_perf_hotesses', 'show_section_perf_sites',
                 'show_section_goodies_par_site', 'show_section_offres_par_hotesse',
                 'show_section_detail_degustations', 'show_section_horaires_sites',
+                'show_section_stock_boissons', 'show_section_ugs_livraisons',
             ),
         }),
         ('Colonnes des tableaux', {
@@ -244,7 +246,7 @@ class RapportJournalierConfigAdmin(admin.ModelAdmin):
             'fields': (
                 'show_pointage', 'show_stock', 'show_stock_boissons', 'show_boissons_gratuites', 'show_ventes_detail',
                 'show_ugs_recus', 'show_ugs_distribues', 'show_ugs_restants',
-                'show_degustation', 'show_genre', 'show_personnes_touchees',
+                'show_degustation', 'show_genre', 'show_tranche_age', 'show_notes_degustation', 'show_personnes_touchees',
                 'show_avis_consommateurs', 'show_observation_generale',
             ),
         }),

@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Avg
 
 from btl.models import (
     RapportJournalier, RemoteUser, Degustation, Vente, GainGoodie,
@@ -82,6 +82,23 @@ class RapportJournalierViewSet(viewsets.mixins.ListModelMixin,
             'femmes': genre_counts.get(Degustation.Genre.FEMME, 0),
         }
 
+        # ── Répartition par tranche d'âge (dégustations du jour) ───────
+        degustations_du_jour = Degustation.objects.filter(
+            site=site, hotesse=hotesse, created_at__date=date,
+        )
+        tranche_age_counts = {row['tranche_age']: row['n'] for row in degustations_du_jour.filter(
+            tranche_age__isnull=False,
+        ).values('tranche_age').annotate(n=Count('id'))}
+        tranche_age_breakdown = [
+            {'tranche_age': value, 'label': label, 'quantite': tranche_age_counts.get(value, 0)}
+            for value, label in Degustation.TrancheAge.choices
+        ]
+
+        # ── Notes moyennes de goût et d'ambiance ce jour-là ────────────
+        notes_moyennes = degustations_du_jour.aggregate(
+            note_gout=Avg('note_gout'), note_ambiance=Avg('note_ambiance'),
+        )
+
         # ── UGs (goodies) reçus sur le site ce jour-là ─────────────────
         ugs_recus = [
             {'goodie': row['goodie__nom'], 'quantite': row['quantite']}
@@ -140,6 +157,8 @@ class RapportJournalierViewSet(viewsets.mixins.ListModelMixin,
         return Response({
             **base,
             'genre_breakdown': genre_breakdown,
+            'tranche_age_breakdown': tranche_age_breakdown,
+            'notes_moyennes': notes_moyennes,
             'ugs_recus': ugs_recus,
             'ugs_distribues': ugs_distribues,
             'ugs_restants': ugs_restants,
