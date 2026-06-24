@@ -852,6 +852,12 @@ class DonneesSiteJour(BaseModel):
         Site, on_delete=models.CASCADE, related_name='donnees_jour'
     )
     date = models.DateField(help_text="Date des données")
+    conditionnement = models.CharField(
+        max_length=10,
+        choices=Produit.TypeConditionnement.choices,
+        default=Produit.TypeConditionnement.UNITE,
+        help_text="Conditionnement du stock de boissons et des boissons gratuites (à l'unité ou en pack), selon la configuration des produits de l'entreprise"
+    )
     stock_boissons = models.PositiveIntegerField(
         null=True, blank=True,
         help_text="Stock de boissons disponible sur le site (saisie manuelle)"

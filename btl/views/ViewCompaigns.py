@@ -92,6 +92,12 @@ class CampagneViewSet(viewsets.ModelViewSet):
         campagne.superviseurs.set(superviseurs)
         campagne.hotesses.set(hotesses)
 
+        # Un superviseur affecté à la campagne supervise l'ensemble de ses sites
+        # (ajout additif : ne retire pas les superviseurs déjà affectés à un site
+        # spécifique mais absents de la liste de la campagne).
+        for site in campagne.sites.all():
+            site.superviseurs.add(*superviseurs)
+
         if data.get('notify', True):
             nouveaux_superviseurs = superviseurs.exclude(id__in=anciens_superviseurs)
             nouvelles_hotesses = hotesses.exclude(id__in=anciennes_hotesses)
