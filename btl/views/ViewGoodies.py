@@ -1,4 +1,4 @@
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -56,13 +56,18 @@ class GoodieViewSet(viewsets.ModelViewSet):
         elif user.role == RemoteUser.Roles.ENTREPRISES:
             qs = qs.filter(entreprise__user=user)
         elif user.role == RemoteUser.Roles.SUPERVISEUR:
-            # Voir les goodies des campagnes supervisées
-            campagnes_ids = user.campagnes_supervisees.values_list('id', flat=True)
-            qs = qs.filter(campagne__id__in=campagnes_ids)
+            # Voir les goodies des campagnes supervisées, au niveau campagne OU site
+            # (un superviseur affecté seulement à un site doit aussi voir les goodies)
+            qs = qs.filter(
+                Q(campagne__superviseurs=user) | Q(campagne__sites__superviseurs=user)
+            ).distinct()
         elif user.role == RemoteUser.Roles.HOTESSES:
-            # Voir les goodies des campagnes assignées
-            campagnes_ids = user.campagnes_assignees.values_list('id', flat=True)
-            qs = qs.filter(campagne__id__in=campagnes_ids)
+            # Voir les goodies des campagnes assignées, au niveau campagne OU site
+            # (une hôtesse affectée seulement à un site doit aussi voir les goodies,
+            # sinon la roue de la fortune lui apparaît vide)
+            qs = qs.filter(
+                Q(campagne__hotesses=user) | Q(campagne__sites__hotesses=user)
+            ).distinct()
         else:
             qs = qs.none()
 

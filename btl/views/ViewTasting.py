@@ -93,13 +93,21 @@ class DegustationViewSet(viewsets.ModelViewSet):
             }
             for p in produits
         ]
+        # Tous les goodies de la campagne doivent apparaître sur la roue de chaque
+        # site (même sans stock alloué côté StockGoodieSite) : le décompte du stock
+        # se fait au moment où l'hôtesse confirme un gain (cf. GainGoodieViewSet.enregistrer),
+        # avec un message "stock insuffisant" et l'option de relancer la roue.
+        stocks_par_goodie = {
+            stock.goodie_id: stock.quantite_restante
+            for stock in site.stocks_goodies.all()
+        }
         goodies_data = [
             {
-                'id': str(stock.goodie.id),
-                'nom': stock.goodie.nom,
-                'quantite_restante': stock.quantite_restante
+                'id': str(goodie.id),
+                'nom': goodie.nom,
+                'quantite_restante': stocks_par_goodie.get(goodie.id, 0)
             }
-            for stock in site.stocks_goodies.filter(quantite_restante__gt=0)
+            for goodie in site.campagne.goodies.all()
         ]
 
         # Récupérer les promotions actives de la campagne si type_recompense = PROMOTIONS
