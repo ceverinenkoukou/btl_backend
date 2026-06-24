@@ -7,6 +7,7 @@ class DonneesSiteJourSerializer(serializers.ModelSerializer):
     campagne = serializers.UUIDField(source='site.campagne.id', read_only=True)
     campagne_nom = serializers.CharField(source='site.campagne.nom', read_only=True)
     enregistre_par_nom = serializers.CharField(source='enregistre_par.name', read_only=True)
+    conditionnement_display = serializers.CharField(source='get_conditionnement_display', read_only=True)
 
     class Meta:
         model = DonneesSiteJour
@@ -15,6 +16,7 @@ class DonneesSiteJourSerializer(serializers.ModelSerializer):
             'site', 'site_nom',
             'campagne', 'campagne_nom',
             'date',
+            'conditionnement', 'conditionnement_display',
             'stock_boissons', 'nombre_boissons_gratuites',
             'enregistre_par', 'enregistre_par_nom',
             'created_at',
