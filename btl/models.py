@@ -648,6 +648,8 @@ class RapportJournalierConfig(BaseModel):
     show_ugs_restants = models.BooleanField(default=True, help_text="Section : UGs (goodies) restants")
     show_degustation = models.BooleanField(default=True, help_text="Section : Détail des dégustations du jour")
     show_genre = models.BooleanField(default=True, help_text="Section : Répartition par genre (Hommes/Femmes) des dégustations")
+    show_tranche_age = models.BooleanField(default=True, help_text="Section : Répartition par tranche d'âge des dégustations")
+    show_notes_degustation = models.BooleanField(default=True, help_text="Section : Notes moyennes de goût et d'ambiance (si activées sur la campagne)")
     show_personnes_touchees = models.BooleanField(default=True, help_text="Section : Nombre de personnes touchées")
     show_avis_consommateurs = models.BooleanField(default=True, help_text="Section : Avis des consommateurs")
     show_observation_generale = models.BooleanField(default=True, help_text="Section : Observation générale")

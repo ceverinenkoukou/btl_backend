@@ -113,7 +113,7 @@ class RapportJournalierConfigInline(admin.StackedInline):
             'fields': (
                 'show_pointage', 'show_stock', 'show_stock_boissons', 'show_boissons_gratuites', 'show_ventes_detail',
                 'show_ugs_recus', 'show_ugs_distribues', 'show_ugs_restants',
-                'show_degustation', 'show_genre', 'show_personnes_touchees',
+                'show_degustation', 'show_genre', 'show_tranche_age', 'show_notes_degustation', 'show_personnes_touchees',
                 'show_avis_consommateurs', 'show_observation_generale',
             ),
         }),
@@ -246,7 +246,7 @@ class RapportJournalierConfigAdmin(admin.ModelAdmin):
             'fields': (
                 'show_pointage', 'show_stock', 'show_stock_boissons', 'show_boissons_gratuites', 'show_ventes_detail',
                 'show_ugs_recus', 'show_ugs_distribues', 'show_ugs_restants',
-                'show_degustation', 'show_genre', 'show_personnes_touchees',
+                'show_degustation', 'show_genre', 'show_tranche_age', 'show_notes_degustation', 'show_personnes_touchees',
                 'show_avis_consommateurs', 'show_observation_generale',
             ),
         }),

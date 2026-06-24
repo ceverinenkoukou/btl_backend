@@ -22,6 +22,8 @@ class RapportJournalierConfigSerializer(serializers.ModelSerializer):
             "show_ugs_restants",
             "show_degustation",
             "show_genre",
+            "show_tranche_age",
+            "show_notes_degustation",
             "show_personnes_touchees",
             "show_avis_consommateurs",
             "show_observation_generale",
