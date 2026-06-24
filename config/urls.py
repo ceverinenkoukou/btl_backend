@@ -40,6 +40,11 @@ from btl.views.ViewObjectifSite import ObjectifSiteViewSet
 from btl.views.ViewRapportJournalier import RapportJournalierViewSet
 from btl.views.ViewSiteProduitPrix import SiteProduitPrixViewSet
 from btl.views.Viewrapportdpdf import RapportPDFViewSet
+from btl.views.ViewJourAnimation import JourAnimationViewSet
+from btl.views.ViewRapportConfig import RapportConfigViewSet
+from btl.views.ViewRapportJournalierConfig import RapportJournalierConfigViewSet
+from btl.views.ViewPointage import PointageViewSet
+from btl.views.ViewLivraisonGoodiesJour import LivraisonGoodiesJourViewSet
 
 router = DefaultRouter()
 router.register(r'users', RemoteUserViewSet, basename='user')
@@ -57,6 +62,11 @@ router.register(r'objectifs-sites', ObjectifSiteViewSet, basename='objectif-site
 router.register(r'rapports-journaliers', RapportJournalierViewSet, basename='rapport-journalier')
 router.register(r'prix-sites', SiteProduitPrixViewSet, basename='prix-site')
 router.register(r'rapports-pdf', RapportPDFViewSet, basename='rapport-pdf')
+router.register(r'jours-animation', JourAnimationViewSet, basename='jour-animation')
+router.register(r'rapport-configs', RapportConfigViewSet, basename='rapport-config')
+router.register(r'rapport-journalier-configs', RapportJournalierConfigViewSet, basename='rapport-journalier-config')
+router.register(r'pointages', PointageViewSet, basename='pointage')
+router.register(r'livraisons-goodies', LivraisonGoodiesJourViewSet, basename='livraison-goodie')
 
 urlpatterns = [
     path("admin/", admin.site.urls),

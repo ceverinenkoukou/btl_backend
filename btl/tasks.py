@@ -4,15 +4,16 @@ from config.celery import app
 @app.task
 def task_generer_rapports_journaliers(date_str=None):
     """
-    Génère (ou met à jour) un RapportJournalier par hôtesse/site pour la date donnée,
-    puis envoie un email récapitulatif aux superviseurs de chaque site.
+    Génère (ou met à jour) un RapportJournalier par hôtesse/site pour la date donnée.
+    Ne déclenche plus d'envoi d'email — les rapports sont consultés depuis l'application.
     Planifié via CELERY_BEAT_SCHEDULE chaque soir à 23h00.
+    Les champs renseignés manuellement (stock, personnes touchées, avis, observation)
+    ne sont jamais écrasés par cette tâche.
     """
     from datetime import date as date_type
     from decimal import Decimal
     from django.db.models import Q
-    from btl.models import Site, Degustation, Vente, RapportJournalier, SiteProduitPrix, GainGoodie
-    from btl.services.email_service import envoyer_rapport_journalier
+    from btl.models import Site, Degustation, Vente, RapportJournalier, SiteProduitPrix, GainGoodie, Pointage
 
     target_date = date_type.fromisoformat(date_str) if date_str else date_type.today()
 
@@ -46,7 +47,15 @@ def task_generer_rapports_journaliers(date_str=None):
                 created_at__date=target_date,
             ).filter(goodies_filter).count()
 
-            rapport, _ = RapportJournalier.objects.update_or_create(
+            try:
+                pointage = Pointage.objects.get(site=site, hotesse=hotesse, date=target_date)
+                heure_arrivee = pointage.heure_arrivee
+                heure_depart = pointage.heure_depart
+            except Pointage.DoesNotExist:
+                heure_arrivee = None
+                heure_depart = None
+
+            RapportJournalier.objects.update_or_create(
                 site=site,
                 hotesse=hotesse,
                 date=target_date,
@@ -55,17 +64,10 @@ def task_generer_rapports_journaliers(date_str=None):
                     'nb_ventes': nb_ventes,
                     'nb_goodies': nb_goodies,
                     'chiffre_affaires': ca,
-                    'email_envoye': False,
+                    'heure_arrivee': heure_arrivee,
+                    'heure_depart': heure_depart,
                 },
             )
-
-            for superviseur in site.superviseurs.all():
-                try:
-                    envoyer_rapport_journalier(superviseur, rapport)
-                    rapport.email_envoye = True
-                    rapport.save(update_fields=['email_envoye', 'nb_goodies'])
-                except Exception:
-                    pass
 
 
 @app.task(bind=True, max_retries=3)

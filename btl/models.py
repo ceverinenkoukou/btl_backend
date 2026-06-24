@@ -1,4 +1,5 @@
 import uuid
+import datetime
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import PermissionsMixin, AbstractBaseUser, BaseUserManager
@@ -299,6 +300,10 @@ class Degustation(BaseModel):
         MOYENNE = 'MOYENNE', 'Moyenne'
         ELEVEE = 'ELEVEE', 'Élevée'
 
+    class Genre(models.TextChoices):
+        HOMME = 'HOMME', 'Homme'
+        FEMME = 'FEMME', 'Femme'
+
     hotesse = models.ForeignKey(
         'RemoteUser',
         on_delete=models.CASCADE,
@@ -311,6 +316,10 @@ class Degustation(BaseModel):
 
     nom_client = models.CharField(max_length=150, blank=True, null=True, help_text="Optionnel ou Prénom")
     tranche_age = models.CharField(max_length=20, choices=TrancheAge.choices)
+    genre = models.CharField(
+        max_length=10, choices=Genre.choices, null=True, blank=True,
+        help_text="Genre du client (Homme/Femme) — nullable pour compatibilité avec les anciennes saisies"
+    )
 
     note_gout = models.PositiveSmallIntegerField(
         null=True, blank=True,
@@ -583,14 +592,250 @@ class RapportJournalier(BaseModel):
         limit_choices_to={'role': RemoteUser.Roles.HOTESSES}
     )
     date = models.DateField()
+
+    # ── Données calculées automatiquement (Celery, chaque soir) ──────
     nb_degustations = models.PositiveIntegerField(default=0)
     nb_ventes = models.PositiveIntegerField(default=0)
     nb_goodies = models.PositiveIntegerField(default=0)
     chiffre_affaires = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    email_envoye = models.BooleanField(default=False, help_text="True une fois l'email superviseur envoyé")
+    heure_arrivee = models.TimeField(null=True, blank=True, help_text="Reprise automatique du pointage d'arrivée")
+    heure_depart = models.TimeField(null=True, blank=True, help_text="Reprise automatique du pointage de départ")
+
+    # ── Données saisies manuellement (superviseur/admin) ────────────
+    stock_initial_magasin = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Stock produit en magasin en début de journée (saisie manuelle)"
+    )
+    nombre_personnes_touchees = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Nombre total de personnes abordées/touchées dans la journée (saisie manuelle)"
+    )
+    avis_consommateurs = models.TextField(
+        blank=True, null=True,
+        help_text="Avis qualitatif des consommateurs sur le produit (saisie manuelle)"
+    )
+    observation_generale = models.TextField(
+        blank=True, null=True,
+        help_text="Observation générale de la journée (saisie manuelle)"
+    )
 
     class Meta:
         unique_together = ('site', 'hotesse', 'date')
 
     def __str__(self):
         return f"Rapport {self.hotesse.name} — {self.site.nom} — {self.date}"
+
+
+class RapportJournalierConfig(BaseModel):
+    """Configuration du bulletin journalier par campagne. Le superviseur choisit les sections à inclure."""
+
+    campagne = models.OneToOneField(
+        Campagne, on_delete=models.CASCADE, related_name='rapport_journalier_config'
+    )
+    configure_par = models.ForeignKey(
+        RemoteUser, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='configs_rapports_journaliers',
+        help_text="Superviseur ou admin ayant défini cette configuration"
+    )
+
+    show_pointage = models.BooleanField(default=True, help_text="Section : Heures d'arrivée / départ")
+    show_stock = models.BooleanField(default=True, help_text="Section : Stock magasin en début de journée")
+    show_ventes_detail = models.BooleanField(default=True, help_text="Section : Détail des ventes (promo / hors promo)")
+    show_ugs_recus = models.BooleanField(default=True, help_text="Section : UGs (goodies) reçus sur le site")
+    show_ugs_distribues = models.BooleanField(default=True, help_text="Section : UGs (goodies) distribués")
+    show_ugs_restants = models.BooleanField(default=True, help_text="Section : UGs (goodies) restants")
+    show_degustation = models.BooleanField(default=True, help_text="Section : Détail des dégustations du jour")
+    show_genre = models.BooleanField(default=True, help_text="Section : Répartition par genre (Hommes/Femmes) des dégustations")
+    show_personnes_touchees = models.BooleanField(default=True, help_text="Section : Nombre de personnes touchées")
+    show_avis_consommateurs = models.BooleanField(default=True, help_text="Section : Avis des consommateurs")
+    show_observation_generale = models.BooleanField(default=True, help_text="Section : Observation générale")
+
+    def __str__(self):
+        return f"Config rapport journalier — {self.campagne.nom}"
+
+    class Meta:
+        verbose_name = "Configuration rapport journalier"
+        verbose_name_plural = "Configurations rapports journaliers"
+
+
+class RapportConfig(BaseModel):
+    """Configuration du rapport PDF par campagne. Le superviseur choisit les sections/colonnes à inclure."""
+
+    campagne = models.OneToOneField(
+        Campagne, on_delete=models.CASCADE, related_name='rapport_config'
+    )
+    configure_par = models.ForeignKey(
+        RemoteUser, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='configs_rapports',
+        help_text="Superviseur ou admin ayant défini cette configuration"
+    )
+
+    # ── En-tête ──────────────────────────────────────────────────
+    titre_personnalise = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text="Titre personnalisé affiché sur la page de couverture (remplace le nom de la campagne)"
+    )
+    sous_titre_personnalise = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text="Sous-titre personnalisé (ex: 'Rapport Confidentiel')"
+    )
+
+    # ── KPIs de synthèse ─────────────────────────────────────────
+    show_kpi_degustations = models.BooleanField(default=True, help_text="Afficher le KPI consommations")
+    show_kpi_ventes = models.BooleanField(default=True, help_text="Afficher le KPI distributions/ventes")
+    show_kpi_ca = models.BooleanField(default=True, help_text="Afficher le KPI chiffre d'affaires")
+    show_kpi_goodies = models.BooleanField(default=True, help_text="Afficher le KPI goodies distribués")
+    show_kpi_sites = models.BooleanField(default=True, help_text="Afficher le KPI nombre de sites actifs")
+
+    # ── Sections du rapport ───────────────────────────────────────
+    show_section_offres_promo = models.BooleanField(default=True, help_text="Section : Offres promotionnelles")
+    show_section_gains_goodies = models.BooleanField(default=True, help_text="Section : Gains de goodies par site")
+    show_section_perf_hotesses = models.BooleanField(default=True, help_text="Section : Performance des hôtesses (rapport interne)")
+    show_section_perf_sites = models.BooleanField(default=True, help_text="Section : Performances par site")
+    show_section_goodies_par_site = models.BooleanField(default=True, help_text="Section : Goodies distribués par site")
+    show_section_offres_par_hotesse = models.BooleanField(default=True, help_text="Section : Offres par hôtesse (rapport interne)")
+    show_section_detail_degustations = models.BooleanField(
+        default=False,
+        help_text="Section : Détail des dégustations — reprend les données saisies par les hôtesses sur le terrain (rapport interne)"
+    )
+    show_section_horaires_sites = models.BooleanField(
+        default=True,
+        help_text="Section : Horaires d'ouverture des sites de la campagne"
+    )
+
+    # ── Colonnes ──────────────────────────────────────────────────
+    show_col_ca = models.BooleanField(default=True, help_text="Colonne : Chiffre d'affaires dans les tableaux")
+    show_col_goodies = models.BooleanField(default=True, help_text="Colonne : Goodies dans les tableaux")
+    show_col_promo_details = models.BooleanField(default=True, help_text="Colonne : Détails promotionnels (offerts, tickets)")
+    show_col_performance = models.BooleanField(default=True, help_text="Colonne : Taux de performance dans les tableaux")
+
+    # ── Colonnes du détail des dégustations (formulaire hôtesse) ──
+    show_col_nom_client = models.BooleanField(default=True, help_text="Colonne : Nom du client dans le détail des dégustations")
+    show_col_tranche_age = models.BooleanField(default=True, help_text="Colonne : Tranche d'âge du client")
+    show_col_intention_achat = models.BooleanField(default=True, help_text="Colonne : Intention d'achat")
+
+    # ── Options générales ─────────────────────────────────────────
+    show_logo = models.BooleanField(default=True, help_text="Afficher le logo de l'entreprise")
+    show_equipe_hotesses = models.BooleanField(default=True, help_text="Inclure les données individuelles des hôtesses (rapport interne)")
+    inclure_notes_sensorielles = models.BooleanField(
+        default=False,
+        help_text="Inclure les notes de goût et d'ambiance dans le détail des dégustations"
+    )
+
+    # ── Observations manuelles ────────────────────────────────────
+    show_observations = models.BooleanField(default=True, help_text="Afficher la section Observations dans le rapport")
+    observations_manuelles = models.TextField(
+        blank=True, null=True,
+        help_text="Observations libres ajoutées manuellement par le superviseur, affichées dans le rapport"
+    )
+
+    def __str__(self):
+        return f"Config rapport — {self.campagne.nom}"
+
+    class Meta:
+        verbose_name = "Configuration rapport"
+        verbose_name_plural = "Configurations rapports"
+
+
+class JourAnimation(BaseModel):
+    """Définit les jours animés d'une campagne et les horaires d'ouverture/fermeture des sites."""
+    campagne = models.ForeignKey(
+        Campagne, on_delete=models.CASCADE, related_name='jours_animation'
+    )
+    site = models.ForeignKey(
+        Site, on_delete=models.CASCADE, related_name='horaires',
+        null=True, blank=True,
+        help_text="Laisser vide pour appliquer à tous les sites de la campagne."
+    )
+    date = models.DateField(help_text="Date de l'animation")
+    heure_ouverture = models.TimeField(default=datetime.time(8, 0))
+    heure_fermeture = models.TimeField(default=datetime.time(18, 0))
+
+    class Meta:
+        unique_together = ('campagne', 'site', 'date')
+        ordering = ['date', 'heure_ouverture']
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.heure_fermeture and self.heure_ouverture and self.heure_fermeture <= self.heure_ouverture:
+            raise ValidationError("L'heure de fermeture doit être après l'heure d'ouverture.")
+        if self.date and self.campagne_id:
+            c = self.campagne
+            if self.date < c.date_debut or self.date > c.date_fin:
+                raise ValidationError("La date doit être dans la période de la campagne.")
+
+    def __str__(self):
+        site_str = f" — {self.site.nom}" if self.site else " (tous les sites)"
+        return f"{self.campagne.nom}{site_str} le {self.date} ({self.heure_ouverture:%H:%M}–{self.heure_fermeture:%H:%M})"
+
+
+class Pointage(BaseModel):
+    """Pointage arrivée/départ d'une hôtesse sur un site pour un jour d'animation."""
+    hotesse = models.ForeignKey(
+        RemoteUser,
+        on_delete=models.CASCADE,
+        related_name='pointages',
+        limit_choices_to={'role': RemoteUser.Roles.HOTESSES},
+    )
+    site = models.ForeignKey(
+        Site, on_delete=models.CASCADE, related_name='pointages'
+    )
+    jour = models.ForeignKey(
+        JourAnimation, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pointages',
+        help_text="Jour d'animation associé (optionnel, pour lier aux horaires prévus)"
+    )
+    date = models.DateField(help_text="Date du pointage")
+    heure_arrivee = models.TimeField(null=True, blank=True, help_text="Heure de pointage à l'arrivée")
+    heure_depart = models.TimeField(null=True, blank=True, help_text="Heure de pointage au départ")
+
+    class Meta:
+        unique_together = ('hotesse', 'site', 'date')
+        ordering = ['-date', 'heure_arrivee']
+        verbose_name = "Pointage hôtesse"
+        verbose_name_plural = "Pointages hôtesses"
+
+    def __str__(self):
+        arr = self.heure_arrivee.strftime('%H:%M') if self.heure_arrivee else '--'
+        dep = self.heure_depart.strftime('%H:%M') if self.heure_depart else '--'
+        return f"{self.hotesse.name} @ {self.site.nom} le {self.date} ({arr}→{dep})"
+
+
+class LivraisonGoodiesJour(BaseModel):
+    """Goodies livrés sur un site pour une journée d'animation donnée."""
+    site = models.ForeignKey(
+        Site, on_delete=models.CASCADE, related_name='livraisons_goodies'
+    )
+    goodie = models.ForeignKey(
+        Goodie, on_delete=models.CASCADE, related_name='livraisons'
+    )
+    date = models.DateField(help_text="Date de la livraison")
+    quantite_apportee = models.PositiveIntegerField(
+        default=0, help_text="Nombre de goodies apportés sur le site ce jour"
+    )
+    enregistre_par = models.ForeignKey(
+        RemoteUser, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='livraisons_goodies_enregistrees'
+    )
+
+    class Meta:
+        unique_together = ('site', 'goodie', 'date')
+        ordering = ['-date']
+        verbose_name = "Livraison goodies (jour)"
+        verbose_name_plural = "Livraisons goodies (jour)"
+
+    def __str__(self):
+        return f"{self.quantite_apportee}× {self.goodie.nom} → {self.site.nom} le {self.date}"
+
+    @property
+    def gains_du_jour(self):
+        """Nombre de goodies gagnés par des clients ce jour sur ce site."""
+        return GainGoodie.objects.filter(
+            site=self.site,
+            goodie=self.goodie,
+            created_at__date=self.date
+        ).count()
+
+    @property
+    def restants_du_jour(self):
+        return max(0, self.quantite_apportee - self.gains_du_jour)

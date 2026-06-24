@@ -8,12 +8,17 @@ class GainPromotionSerializer(serializers.ModelSerializer):
     promotion_description = serializers.CharField(source='promotion.recompense_description', read_only=True)
     type_promotion = serializers.CharField(source='promotion.type_promotion', read_only=True)
     quantite_requise = serializers.IntegerField(source='promotion.quantite_requise', read_only=True)
+    quantite_offerte = serializers.IntegerField(source='promotion.quantite_offerte', read_only=True)
+    conditionnement = serializers.CharField(source='promotion.conditionnement', read_only=True)
+    conditionnement_display = serializers.CharField(source='promotion.get_conditionnement_display', read_only=True)
 
     class Meta:
         model = GainPromotion
         fields = [
             'id',
-            'promotion', 'promotion_description', 'type_promotion', 'quantite_requise',
+            'promotion', 'promotion_description', 'type_promotion',
+            'quantite_requise', 'quantite_offerte',
+            'conditionnement', 'conditionnement_display',
             'hotesse_nom', 'site_nom',
             'campagne',
             'quantite_produits_concernes',

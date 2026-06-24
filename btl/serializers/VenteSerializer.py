@@ -17,6 +17,7 @@ class VenteLightSerializer(serializers.ModelSerializer):
 
 
 class VenteSerializer(serializers.ModelSerializer):
+    hotesse = serializers.UUIDField(source='hotesse.id', read_only=True)
     hotesse_nom = serializers.CharField(source='hotesse.name', read_only=True)
     site_nom = serializers.CharField(source='site.nom', read_only=True)
     campagne_nom = serializers.CharField(source='site.campagne.nom', read_only=True)
@@ -42,7 +43,7 @@ class VenteSerializer(serializers.ModelSerializer):
         model = Vente
         fields = [
             'id',
-            'hotesse_nom', 'site_nom', 'campagne_nom', 'entreprise_nom',
+            'hotesse', 'hotesse_nom', 'site_nom', 'campagne_nom', 'entreprise_nom',
             'entreprise_logo', 'entreprise_couleur_primaire',
             'entreprise_couleur_secondaire',
             'produit', 'produit_nom',

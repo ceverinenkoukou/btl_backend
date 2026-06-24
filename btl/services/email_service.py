@@ -83,36 +83,6 @@ def envoyer_email_credentials_terrain(utilisateur, mot_de_passe_provisoire):
     _envoyer_email(sujet, html, [utilisateur.email])
 
 
-def envoyer_rapport_journalier(superviseur, rapport) -> None:
-    site = rapport.site
-    hotesse = rapport.hotesse
-    sujet = f"[MHedia BTL] Rapport journalier — {site.nom} — {rapport.date.strftime('%d/%m/%Y')}"
-    html = f"""
-    <p>Bonjour <strong>{superviseur.name}</strong>,</p>
-    <p>Voici le rapport de la journée du <strong>{rapport.date.strftime('%d/%m/%Y')}</strong>
-       pour le site <strong>{site.nom}</strong> ({site.ville}) :</p>
-    <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;">
-      <tr>
-        <th>Hôtesse</th>
-        <th>Dégustations</th>
-        <th>Ventes</th>
-        <th>Goodies</th>
-        <th>CA (FCFA)</th>
-      </tr>
-      <tr>
-        <td>{hotesse.name}</td>
-        <td>{rapport.nb_degustations}</td>
-        <td>{rapport.nb_ventes}</td>
-        <td>{rapport.nb_goodies}</td>
-        <td>{rapport.chiffre_affaires}</td>
-      </tr>
-    </table>
-    <p><a href="{settings.FRONTEND_URL}">Accéder à la plateforme</a></p>
-    <p>Cordialement,<br>L'équipe MHedia BTL</p>
-    """
-    _envoyer_email(sujet, html, [superviseur.email])
-
-
 def _envoyer_email(sujet: str, html: str, destinataires: list[str]) -> None:
     """Envoie un e-mail via Resend API."""
     logger.info("Envoi e-mail « %s » à %s", sujet, ", ".join(destinataires))
