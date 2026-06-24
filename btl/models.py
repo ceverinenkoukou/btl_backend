@@ -705,6 +705,14 @@ class RapportConfig(BaseModel):
         default=True,
         help_text="Section : Horaires d'ouverture des sites de la campagne"
     )
+    show_section_stock_boissons = models.BooleanField(
+        default=True,
+        help_text="Section : Stock de boissons & boissons gratuites par site"
+    )
+    show_section_ugs_livraisons = models.BooleanField(
+        default=True,
+        help_text="Section : UGs (goodies) reçus / distribués / restants par site"
+    )
 
     # ── Colonnes ──────────────────────────────────────────────────
     show_col_ca = models.BooleanField(default=True, help_text="Colonne : Chiffre d'affaires dans les tableaux")

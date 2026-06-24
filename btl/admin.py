@@ -78,6 +78,7 @@ class RapportConfigInline(admin.StackedInline):
                 'show_section_perf_hotesses', 'show_section_perf_sites',
                 'show_section_goodies_par_site', 'show_section_offres_par_hotesse',
                 'show_section_detail_degustations', 'show_section_horaires_sites',
+                'show_section_stock_boissons', 'show_section_ugs_livraisons',
             ),
         }),
         ('Colonnes des tableaux', {
@@ -204,6 +205,7 @@ class RapportConfigAdmin(admin.ModelAdmin):
                 'show_section_perf_hotesses', 'show_section_perf_sites',
                 'show_section_goodies_par_site', 'show_section_offres_par_hotesse',
                 'show_section_detail_degustations', 'show_section_horaires_sites',
+                'show_section_stock_boissons', 'show_section_ugs_livraisons',
             ),
         }),
         ('Colonnes des tableaux', {
