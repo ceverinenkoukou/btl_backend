@@ -60,6 +60,7 @@ class EnregistrerGainGoodieSerializer(serializers.Serializer):
     goodie_id = serializers.UUIDField()
     site_id = serializers.UUIDField()
     promotion_id = serializers.UUIDField(required=False, allow_null=True, default=None)
+    degustation_id = serializers.UUIDField(required=False, allow_null=True, default=None)
     nom_client = serializers.CharField(max_length=150, required=False, allow_blank=True)
     quantite_produit = serializers.IntegerField(min_value=1, required=False, default=1)
     

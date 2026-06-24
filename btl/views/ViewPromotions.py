@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 
-from btl.models import Promotion, GainPromotion, Site, Vente, Produit
+from btl.models import Promotion, GainPromotion, Site, Vente, Produit, Degustation
 from btl.permissions import IsAdmin, IsPasswordChanged
 from btl.serializers import PromotionSerializer
 
@@ -100,6 +100,14 @@ class PromotionViewSet(viewsets.ModelViewSet):
 
         nom_client = request.data.get('nom_client', '').strip() or None
 
+        # Dégustation d'origine (optionnelle) : si fournie, la vente NORMAL
+        # créée ci-dessous lui est rattachée, pour que a_achete=True soit
+        # toujours traçable jusqu'à une Vente concrète.
+        degustation = None
+        degustation_id = request.data.get('degustation_id')
+        if degustation_id:
+            degustation = Degustation.objects.filter(id=degustation_id, hotesse=user).first()
+
         with transaction.atomic():
             gain = GainPromotion.objects.create(
                 promotion=promotion,
@@ -116,6 +124,7 @@ class PromotionViewSet(viewsets.ModelViewSet):
             if produit:
                 # 1. Vente NORMAL : les produits achetés par le client (quantite_requise)
                 vente_achat = Vente.objects.create(
+                    degustation=degustation,
                     hotesse=user,
                     site=site,
                     produit=produit,
