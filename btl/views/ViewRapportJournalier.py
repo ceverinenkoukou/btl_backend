@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q, Count, Avg
+from django.db.models import Q, Count, Avg, Sum
 
 from btl.models import (
     RapportJournalier, RemoteUser, Degustation, Vente, GainGoodie,
@@ -131,9 +131,11 @@ class RapportJournalierViewSet(viewsets.mixins.ListModelMixin,
         conditionnement_boissons = donnees_site.get_conditionnement_display() if donnees_site else None
 
         # ── Ventes hors promo (normales) ───────────────────────────────
+        # Somme des quantités, pas le nombre de lignes Vente : une vente
+        # avec quantite=3 doit compter pour 3 produits, pas pour 1.
         ventes_hors_promo = Vente.objects.filter(
             site=site, hotesse=hotesse, created_at__date=date, type_vente=Vente.TypeVente.NORMAL,
-        ).count()
+        ).aggregate(total=Sum('quantite'))['total'] or 0
 
         # ── Détail des ventes promo : regroupées par mécanique (quantité offerte) ──
         promo_gains = GainPromotion.objects.filter(
