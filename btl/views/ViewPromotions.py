@@ -138,6 +138,11 @@ class PromotionViewSet(viewsets.ModelViewSet):
                     "vente_id": str(vente_achat.id),
                     "quantite": promotion.quantite_requise,
                 })
+                # Relie le gain à l'achat qui l'a déclenché, pour que les
+                # rapports puissent afficher une seule ligne (achat + offre)
+                # au lieu de deux enregistrements sans lien.
+                gain.vente_achat = vente_achat
+                gain.save(update_fields=['vente_achat'])
 
                 # 2. Vente PROMOTION : le produit offert (si type OFFERT uniquement)
                 # TIRAGE ne génère pas de vente produit — la récompense passe par la roue

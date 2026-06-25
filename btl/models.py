@@ -540,6 +540,16 @@ class GainPromotion(BaseModel):
         choices=Degustation.TrancheAge.choices,
         help_text="Tranche d'âge du client (optionnel)"
     )
+    # Vente NORMAL d'origine (les produits achetés ayant déclenché ce gain).
+    # Nullable : absente si la promo n'a pas de produit associé (ex: TIRAGE
+    # sans produit), ou pour les gains historiques enregistrés avant ce lien.
+    vente_achat = models.OneToOneField(
+        'Vente',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='gain_promotion',
+        help_text="Vente NORMAL correspondant à l'achat ayant déclenché ce gain"
+    )
 
     def __str__(self):
         return (
