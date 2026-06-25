@@ -27,18 +27,25 @@ class VenteViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.user
 
         if user.role == RemoteUser.Roles.ADMIN:
-            return Vente.objects.all()
+            qs = Vente.objects.all()
+        elif user.role == RemoteUser.Roles.HOTESSES:
+            qs = Vente.objects.filter(hotesse=user)
+        elif user.role == RemoteUser.Roles.SUPERVISEUR:
+            qs = Vente.objects.filter(site__in=user.sites_supervises.all())
+        elif user.role == RemoteUser.Roles.ENTREPRISES:
+            qs = Vente.objects.filter(site__campagne__entreprise__user=user)
+        else:
+            return Vente.objects.none()
 
-        if user.role == RemoteUser.Roles.HOTESSES:
-            return Vente.objects.filter(hotesse=user)
+        campagne_id = self.request.query_params.get('campagne')
+        if campagne_id:
+            qs = qs.filter(site__campagne_id=campagne_id)
 
-        if user.role == RemoteUser.Roles.SUPERVISEUR:
-            return Vente.objects.filter(site__in=user.sites_supervises.all())
+        site_id = self.request.query_params.get('site')
+        if site_id:
+            qs = qs.filter(site_id=site_id)
 
-        if user.role == RemoteUser.Roles.ENTREPRISES:
-            return Vente.objects.filter(site__campagne__entreprise__user=user)
-
-        return Vente.objects.none()
+        return qs
 
     @action(detail=False, methods=['get'], url_path='stats')
     def stats(self, request):

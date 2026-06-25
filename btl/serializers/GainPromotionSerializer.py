@@ -23,6 +23,7 @@ class GainPromotionSerializer(serializers.ModelSerializer):
             'campagne',
             'quantite_produits_concernes',
             'nom_client',
+            'vente_achat',
             'created_at',
         ]
         read_only_fields = ['id', 'created_at']
