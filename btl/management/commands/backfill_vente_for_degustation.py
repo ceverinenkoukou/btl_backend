@@ -19,25 +19,32 @@ class Command(BaseCommand):
 
     Avec --all, le même conditionnement/quantite est appliqué à toutes les
     dégustations orphelines trouvées (l'info réelle par dégustation n'est
-    pas récupérable) ; pour un conditionnement différent au cas par cas,
-    relancer la commande une fois par --degustation-id.
+    pas récupérable automatiquement). Si certaines sont des PACK et d'autres
+    des UNITE, traite d'abord les PACK connues via --degustation-ids (lot
+    d'UUIDs séparés par des virgules) avec --conditionnement PACK, PUIS lance
+    --all avec --conditionnement UNITE : celles déjà traitées ne sont plus
+    "orphelines" et seront ignorées par le --all qui suit.
     """
 
     help = (
-        "Crée la Vente hors promo manquante pour une (--degustation-id) ou "
-        "toutes (--all) les Degustation(a_achete=True, vente_associee=None)."
+        "Crée la Vente hors promo manquante pour une (--degustation-id), "
+        "plusieurs (--degustation-ids id1,id2,...) ou toutes (--all) les "
+        "Degustation(a_achete=True, vente_associee=None)."
     )
 
     def add_arguments(self, parser):
         parser.add_argument("--degustation-id", type=str, default=None, help="UUID d'une dégustation précise à corriger.")
-        parser.add_argument("--all", action="store_true", help="Traite toutes les dégustations orphelines (a_achete=True, sans vente liée).")
+        parser.add_argument("--degustation-ids", type=str, default=None, help="UUIDs séparés par des virgules, pour appliquer le même conditionnement/quantite à un lot précis (ex: les ventes en PACK identifiées).")
+        parser.add_argument("--all", action="store_true", help="Traite toutes les dégustations orphelines restantes (a_achete=True, sans vente liée).")
+        parser.add_argument("--campagne", type=str, default=None, help="Avec --all : filtre par nom de campagne (recherche partielle, insensible à la casse).")
+        parser.add_argument("--date", type=str, default=None, help="Avec --all : filtre par date de la dégustation (YYYY-MM-DD).")
         parser.add_argument("--conditionnement", type=str, default="UNITE", choices=["UNITE", "PACK"])
         parser.add_argument("--quantite", type=int, default=1)
         parser.add_argument("--dry-run", action="store_true", help="Affiche ce qui serait créé sans rien écrire en base.")
 
     def handle(self, *args, **options):
-        if not options["degustation_id"] and not options["all"]:
-            raise CommandError("Fournis --degustation-id <uuid> ou --all.")
+        if not options["degustation_id"] and not options["degustation_ids"] and not options["all"]:
+            raise CommandError("Fournis --degustation-id <uuid>, --degustation-ids <uuid1,uuid2,...> ou --all.")
 
         if options["degustation_id"]:
             try:
@@ -47,10 +54,25 @@ class Command(BaseCommand):
                 ]
             except Degustation.DoesNotExist:
                 raise CommandError(f"Dégustation introuvable : {options['degustation_id']}")
-        else:
+        elif options["degustation_ids"]:
+            ids = [v.strip() for v in options["degustation_ids"].split(",") if v.strip()]
             degustations = list(
-                Degustation.objects.filter(a_achete=True, vente_associee__isnull=True)
+                Degustation.objects.filter(id__in=ids)
                 .select_related("hotesse", "site", "produit")
+                .order_by("created_at")
+            )
+            trouves = {str(d.id) for d in degustations}
+            manquants = [i for i in ids if i not in trouves]
+            if manquants:
+                raise CommandError(f"Dégustation(s) introuvable(s) : {', '.join(manquants)}")
+        else:
+            qs = Degustation.objects.filter(a_achete=True, vente_associee__isnull=True)
+            if options["campagne"]:
+                qs = qs.filter(campagne__nom__icontains=options["campagne"])
+            if options["date"]:
+                qs = qs.filter(created_at__date=options["date"])
+            degustations = list(
+                qs.select_related("hotesse", "site", "produit")
                 .order_by("created_at")
             )
 

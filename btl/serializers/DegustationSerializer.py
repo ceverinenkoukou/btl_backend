@@ -10,9 +10,16 @@ class DegustationSerializer(serializers.ModelSerializer):
       - hotesse   → request.user
       - campagne  → site.campagne
 
-    Champs optionnels pour créer une Vente si a_achete=True :
-      - conditionnement
-      - quantite
+    Si a_achete=True, une Vente "hors promo" (NORMAL) est créée automatiquement
+    (conditionnement par défaut: UNITE si non précisé) — sauf si
+    promotion_appliquee=True, qui signale qu'un gain promotionnel va être
+    enregistré juste après (POST /promotions/{id}/enregistrer-gain/, qui crée
+    lui-même la Vente de type PROMOTION) : créer une Vente ici en plus
+    produirait un doublon.
+
+    Champs write-only liés à l'achat, gérés dans create() :
+      - conditionnement, quantite : détail de la vente hors promo
+      - promotion_appliquee : désactive la création automatique ci-dessus
     """
 
     # --- Champs en lecture seule (affichage) ---
@@ -40,6 +47,7 @@ class DegustationSerializer(serializers.ModelSerializer):
         default=1,
         min_value=1
     )
+    promotion_appliquee = serializers.BooleanField(write_only=True, required=False, default=False)
 
     # Expose la vente associée en lecture
     vente = serializers.SerializerMethodField()
@@ -61,7 +69,7 @@ class DegustationSerializer(serializers.ModelSerializer):
             # Évaluation
             'note_gout', 'note_ambiance', 'intention_achat', 'intention_achat_display',
             # Achat
-            'a_achete', 'conditionnement', 'quantite',
+            'a_achete', 'conditionnement', 'quantite', 'promotion_appliquee',
             # Vente créée
             'vente',
             'created_at',
@@ -105,6 +113,7 @@ class DegustationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         conditionnement = validated_data.pop('conditionnement', None)
         quantite = validated_data.pop('quantite', 1)
+        promotion_appliquee = validated_data.pop('promotion_appliquee', False)
 
         user = self.context['request'].user
         site = validated_data['site']
@@ -114,13 +123,13 @@ class DegustationSerializer(serializers.ModelSerializer):
 
         degustation = Degustation.objects.create(**validated_data)
 
-        if degustation.a_achete and conditionnement:
+        if degustation.a_achete and not promotion_appliquee:
             Vente.objects.create(
                 degustation=degustation,
                 hotesse=user,
                 site=site,
                 produit=degustation.produit,
-                conditionnement=conditionnement,
+                conditionnement=conditionnement or Vente.TypeConditionnement.UNITE,
                 quantite=quantite,
             )
 
