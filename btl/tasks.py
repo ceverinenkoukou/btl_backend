@@ -12,7 +12,7 @@ def task_generer_rapports_journaliers(date_str=None):
     """
     from datetime import date as date_type
     from decimal import Decimal
-    from django.db.models import Q
+    from django.db.models import Q, Sum
     from btl.models import Site, Degustation, Vente, RapportJournalier, SiteProduitPrix, GainGoodie, Pointage
 
     target_date = date_type.fromisoformat(date_str) if date_str else date_type.today()
@@ -28,7 +28,10 @@ def task_generer_rapports_journaliers(date_str=None):
                 site=site, hotesse=hotesse, created_at__date=target_date
             ).select_related('produit')
 
-            nb_ventes = ventes_qs.count()
+            # Somme des quantités, pas le nombre de lignes Vente : une vente
+            # avec quantite=3 doit compter pour 3 produits, pas pour 1
+            # (même correctif que ventes_hors_promo dans ViewRapportJournalier.py).
+            nb_ventes = ventes_qs.aggregate(total=Sum('quantite'))['total'] or 0
 
             ca = Decimal('0')
             for vente in ventes_qs:
