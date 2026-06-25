@@ -38,14 +38,29 @@ class Command(BaseCommand):
             default=5,
             help="Fenêtre temporelle maximale (en minutes) pour considérer une Vente comme correspondante (défaut: 5).",
         )
+        parser.add_argument(
+            "--campagne",
+            type=str,
+            default=None,
+            help="Filtre par nom de campagne (recherche partielle, insensible à la casse).",
+        )
+        parser.add_argument(
+            "--date",
+            type=str,
+            default=None,
+            help="Filtre par date de la dégustation (YYYY-MM-DD).",
+        )
 
     def handle(self, *args, **options):
         apply_changes = options["apply"]
         window = timedelta(minutes=options["window_minutes"])
 
-        orphelines = Degustation.objects.filter(
-            a_achete=True, vente_associee__isnull=True
-        ).select_related("hotesse", "site", "produit", "campagne").order_by("created_at")
+        orphelines = Degustation.objects.filter(a_achete=True, vente_associee__isnull=True)
+        if options["campagne"]:
+            orphelines = orphelines.filter(campagne__nom__icontains=options["campagne"])
+        if options["date"]:
+            orphelines = orphelines.filter(created_at__date=options["date"])
+        orphelines = orphelines.select_related("hotesse", "site", "produit", "campagne").order_by("created_at")
 
         total = orphelines.count()
         self.stdout.write(f"Dégustations a_achete=True sans vente liée : {total}")
