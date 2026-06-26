@@ -7,6 +7,7 @@ from django.db import transaction
 from btl.models import Promotion, GainPromotion, Site, Vente, Produit, Degustation
 from btl.permissions import IsAdmin, IsPasswordChanged
 from btl.serializers import PromotionSerializer
+from btl.services.saisie_manuelle import resoudre_hotesse_et_verifier_site
 
 
 class PromotionViewSet(viewsets.ModelViewSet):
@@ -52,13 +53,6 @@ class PromotionViewSet(viewsets.ModelViewSet):
         promotion = self.get_object()
         user = request.user
 
-        # Vérification rôle
-        if user.role != 'Hotesse':
-            return Response(
-                {"detail": "Seules les hôtesses peuvent enregistrer un gain."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
         site_id = request.data.get('site_id')
         produit_id = request.data.get('produit_id')
         if not site_id:
@@ -74,6 +68,11 @@ class PromotionViewSet(viewsets.ModelViewSet):
                 {"detail": "Site introuvable."},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+        # Lève PermissionDenied/ValidationError (gérées automatiquement par
+        # DRF) si l'appelant n'a pas le droit de saisir pour ce site/cette
+        # hôtesse. Pour une hôtesse, hotesse == user (hotesse_id ignoré).
+        hotesse = resoudre_hotesse_et_verifier_site(user, site, request.data.get('hotesse_id'))
 
         # Récupérer le produit (obligatoire pour créer les ventes)
         produit = None
@@ -106,12 +105,12 @@ class PromotionViewSet(viewsets.ModelViewSet):
         degustation = None
         degustation_id = request.data.get('degustation_id')
         if degustation_id:
-            degustation = Degustation.objects.filter(id=degustation_id, hotesse=user).first()
+            degustation = Degustation.objects.filter(id=degustation_id, hotesse=hotesse).first()
 
         with transaction.atomic():
             gain = GainPromotion.objects.create(
                 promotion=promotion,
-                hotesse=user,
+                hotesse=hotesse,
                 site=site,
                 campagne=promotion.campagne,
                 quantite_produits_concernes=promotion.quantite_requise,
@@ -125,7 +124,7 @@ class PromotionViewSet(viewsets.ModelViewSet):
                 # 1. Vente NORMAL : les produits achetés par le client (quantite_requise)
                 vente_achat = Vente.objects.create(
                     degustation=degustation,
-                    hotesse=user,
+                    hotesse=hotesse,
                     site=site,
                     produit=produit,
                     conditionnement=promotion.conditionnement,
@@ -148,7 +147,7 @@ class PromotionViewSet(viewsets.ModelViewSet):
                 # TIRAGE ne génère pas de vente produit — la récompense passe par la roue
                 if promotion.type_promotion == Promotion.TypePromotion.OFFERT:
                     vente_offerte = Vente.objects.create(
-                        hotesse=user,
+                        hotesse=hotesse,
                         site=site,
                         produit=produit,
                         conditionnement=promotion.conditionnement,

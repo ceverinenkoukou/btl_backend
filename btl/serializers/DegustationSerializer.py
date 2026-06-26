@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from btl.models import Degustation, Vente, Produit, Site
+from btl.models import Degustation, Vente, Produit, Site, RemoteUser
+from btl.services.saisie_manuelle import resoudre_hotesse_et_verifier_site
 
 
 class DegustationSerializer(serializers.ModelSerializer):
@@ -49,6 +50,10 @@ class DegustationSerializer(serializers.ModelSerializer):
     )
     promotion_appliquee = serializers.BooleanField(write_only=True, required=False, default=False)
 
+    # Requis uniquement quand un Admin/Superviseur saisit pour le compte
+    # d'une hôtesse (ignoré si l'appelant est lui-même une hôtesse).
+    hotesse_id = serializers.UUIDField(write_only=True, required=False, allow_null=True, default=None)
+
     # Expose la vente associée en lecture
     vente = serializers.SerializerMethodField()
 
@@ -70,6 +75,7 @@ class DegustationSerializer(serializers.ModelSerializer):
             'note_gout', 'note_ambiance', 'intention_achat', 'intention_achat_display',
             # Achat
             'a_achete', 'conditionnement', 'quantite', 'promotion_appliquee',
+            'hotesse_id',
             # Vente créée
             'vente',
             'created_at',
@@ -86,9 +92,14 @@ class DegustationSerializer(serializers.ModelSerializer):
     # --- Validations ---
 
     def validate_site(self, site):
-        """L'hôtesse ne peut saisir que sur un site auquel elle est assignée."""
+        """
+        L'hôtesse ne peut saisir que sur un site auquel elle est assignée.
+        Pour un Admin/Superviseur saisissant pour le compte d'une hôtesse,
+        la vérification complète (site supervisé + hôtesse assignée) est
+        faite dans create() via resoudre_hotesse_et_verifier_site.
+        """
         user = self.context['request'].user
-        if not site.hotesses.filter(id=user.id).exists():
+        if user.role == RemoteUser.Roles.HOTESSES and not site.hotesses.filter(id=user.id).exists():
             raise serializers.ValidationError(
                 "Vous n'êtes pas assignée à ce site."
             )
@@ -114,11 +125,13 @@ class DegustationSerializer(serializers.ModelSerializer):
         conditionnement = validated_data.pop('conditionnement', None)
         quantite = validated_data.pop('quantite', 1)
         promotion_appliquee = validated_data.pop('promotion_appliquee', False)
+        hotesse_id = validated_data.pop('hotesse_id', None)
 
         user = self.context['request'].user
         site = validated_data['site']
 
-        validated_data['hotesse'] = user
+        hotesse = resoudre_hotesse_et_verifier_site(user, site, hotesse_id)
+        validated_data['hotesse'] = hotesse
         validated_data['campagne'] = site.campagne
 
         degustation = Degustation.objects.create(**validated_data)
@@ -126,7 +139,7 @@ class DegustationSerializer(serializers.ModelSerializer):
         if degustation.a_achete and not promotion_appliquee:
             Vente.objects.create(
                 degustation=degustation,
-                hotesse=user,
+                hotesse=hotesse,
                 site=site,
                 produit=degustation.produit,
                 conditionnement=conditionnement or Vente.TypeConditionnement.UNITE,

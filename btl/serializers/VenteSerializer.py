@@ -38,6 +38,13 @@ class VenteSerializer(serializers.ModelSerializer):
     prix_total = serializers.DecimalField(
         max_digits=12, decimal_places=2, read_only=True
     )
+    est_achat_promo = serializers.SerializerMethodField(
+        help_text="True si cette vente NORMAL est l'achat ayant déclenché un GainPromotion "
+                   "(donc pas réellement une vente « hors promo »)."
+    )
+
+    def get_est_achat_promo(self, obj):
+        return hasattr(obj, 'gain_promotion')
 
     class Meta:
         model = Vente
@@ -49,7 +56,7 @@ class VenteSerializer(serializers.ModelSerializer):
             'produit', 'produit_nom',
             'conditionnement', 'conditionnement_display',
             'quantite', 'prix_total', 'type_vente',
-            'nom_client',
+            'nom_client', 'est_achat_promo',
             'created_at',
         ]
         read_only_fields = ['id', 'created_at']

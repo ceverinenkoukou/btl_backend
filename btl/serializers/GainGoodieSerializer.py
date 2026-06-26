@@ -63,6 +63,9 @@ class EnregistrerGainGoodieSerializer(serializers.Serializer):
     degustation_id = serializers.UUIDField(required=False, allow_null=True, default=None)
     nom_client = serializers.CharField(max_length=150, required=False, allow_blank=True)
     quantite_produit = serializers.IntegerField(min_value=1, required=False, default=1)
+    # Requis uniquement quand un Admin/Superviseur saisit pour le compte
+    # d'une hôtesse (ignoré si l'appelant est lui-même une hôtesse).
+    hotesse_id = serializers.UUIDField(required=False, allow_null=True, default=None)
     
     def validate_goodie_id(self, value):
         try:
