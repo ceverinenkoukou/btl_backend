@@ -133,8 +133,12 @@ class RapportJournalierViewSet(viewsets.mixins.ListModelMixin,
         # ── Ventes hors promo (normales) ───────────────────────────────
         # Somme des quantités, pas le nombre de lignes Vente : une vente
         # avec quantite=3 doit compter pour 3 produits, pas pour 1.
+        # gain_promotion__isnull=True exclut les ventes NORMAL qui sont en
+        # réalité l'achat déclencheur d'un gain promo (cf. ViewPromotions.
+        # enregistrer_gain) : ces achats ne sont pas "hors promo".
         ventes_hors_promo = Vente.objects.filter(
             site=site, hotesse=hotesse, created_at__date=date, type_vente=Vente.TypeVente.NORMAL,
+            gain_promotion__isnull=True,
         ).aggregate(total=Sum('quantite'))['total'] or 0
 
         # ── Détail des ventes promo : regroupées par mécanique (quantité offerte) ──

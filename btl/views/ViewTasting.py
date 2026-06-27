@@ -53,9 +53,14 @@ class DegustationViewSet(viewsets.ModelViewSet):
         return Degustation.objects.none()
 
     def create(self, request, *args, **kwargs):
-        if request.user.role != RemoteUser.Roles.HOTESSES:
+        # Hôtesse : saisit pour elle-même. Admin/Superviseur : saisie
+        # manuelle pour le compte d'une hôtesse (cf. champ hotesse_id),
+        # vérifiée dans DegustationSerializer.create.
+        if request.user.role not in (
+            RemoteUser.Roles.HOTESSES, RemoteUser.Roles.SUPERVISEUR, RemoteUser.Roles.ADMIN,
+        ):
             return Response(
-                {"detail": "Seules les hôtesses peuvent saisir des dégustations."},
+                {"detail": "Vous n'avez pas les droits pour saisir une dégustation."},
                 status=status.HTTP_403_FORBIDDEN
             )
         return super().create(request, *args, **kwargs)
@@ -75,8 +80,17 @@ class DegustationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        user = request.user
+        sites_qs = Site.objects.all()
+        if user.role == RemoteUser.Roles.HOTESSES:
+            sites_qs = sites_qs.filter(hotesses=user)
+        elif user.role == RemoteUser.Roles.SUPERVISEUR:
+            sites_qs = sites_qs.filter(superviseurs=user)
+        elif user.role != RemoteUser.Roles.ADMIN:
+            return Response({"detail": "Accès refusé."}, status=status.HTTP_403_FORBIDDEN)
+
         try:
-            site = Site.objects.get(pk=site_id, hotesses=request.user)
+            site = sites_qs.get(pk=site_id)
         except Site.DoesNotExist:
             return Response(
                 {"detail": "Site introuvable ou non assigné."},
@@ -143,4 +157,10 @@ class DegustationViewSet(viewsets.ModelViewSet):
             'auto_select_produit': len(produits_data) == 1,
             'goodies_disponibles': goodies_data,
             'promotions': promotions_data,
+            # Utilisé par l'écran de saisie manuelle (Admin/Superviseur) pour
+            # choisir l'hôtesse pour le compte de qui la saisie est faite.
+            'hotesses_disponibles': [
+                {'id': str(h.id), 'name': h.name}
+                for h in site.hotesses.all()
+            ],
         })

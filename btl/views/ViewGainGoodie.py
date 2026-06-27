@@ -8,6 +8,7 @@ from django.db.models import Q
 from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Vente, RemoteUser, Produit, Campagne, Promotion, Degustation
 from btl.permissions import IsPasswordChanged
 from btl.serializers.GainGoodieSerializer import GainGoodieSerializer, EnregistrerGainGoodieSerializer
+from btl.services.saisie_manuelle import resoudre_hotesse_et_verifier_site
 
 
 class GainGoodieViewSet(viewsets.ModelViewSet):
@@ -76,24 +77,34 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
         """
         serializer = EnregistrerGainGoodieSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         goodie_id = serializer.validated_data['goodie_id']
         site_id = serializer.validated_data['site_id']
         promotion_id = serializer.validated_data.get('promotion_id')
         degustation_id = serializer.validated_data.get('degustation_id')
         nom_client = serializer.validated_data.get('nom_client', '').strip() or None
         quantite_produit = serializer.validated_data.get('quantite_produit', 1)
+        hotesse_id = serializer.validated_data.get('hotesse_id')
+
+        try:
+            site = Site.objects.get(id=site_id)
+        except Site.DoesNotExist:
+            return Response({"detail": "Ce site n'existe pas."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Lève PermissionDenied/ValidationError (gérées automatiquement par
+        # DRF) si l'appelant n'a pas le droit de saisir pour ce site/cette
+        # hôtesse — volontairement hors du try/except métier ci-dessous.
+        hotesse = resoudre_hotesse_et_verifier_site(request.user, site, hotesse_id)
 
         # Dégustation d'origine (optionnelle), pour traçabilité du gain.
         degustation = None
         if degustation_id:
-            degustation = Degustation.objects.filter(id=degustation_id, hotesse=request.user).first()
+            degustation = Degustation.objects.filter(id=degustation_id, hotesse=hotesse).first()
 
         try:
             with transaction.atomic():
                 # Récupérer les objets
                 goodie = Goodie.objects.get(id=goodie_id)
-                site = Site.objects.get(id=site_id)
                 promotion = Promotion.objects.get(id=promotion_id) if promotion_id else None
                 is_promo_wheel = promotion and promotion.type_promotion in ('TIRAGE', 'GAGNE')
 
@@ -115,16 +126,16 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
                     degustation=degustation,
                     site=site,
                     goodie=goodie,
-                    hotesse=request.user,
+                    hotesse=hotesse,
                     produit_associe=goodie.produit_associe,
                     quantite_produit=quantite_produit,
                     nom_client=nom_client
                 )
-                
+
                 # Créer une Vente pour le produit associé si applicable
                 if goodie.produit_associe:
                     vente = Vente.objects.create(
-                        hotesse=request.user,
+                        hotesse=hotesse,
                         site=site,
                         produit=goodie.produit_associe,
                         conditionnement=Vente.TypeConditionnement.UNITE,
@@ -152,11 +163,6 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
         except Goodie.DoesNotExist:
             return Response(
                 {"detail": "Ce goodie n'existe pas."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Site.DoesNotExist:
-            return Response(
-                {"detail": "Ce site n'existe pas."},
                 status=status.HTTP_404_NOT_FOUND
             )
         except StockGoodieSite.DoesNotExist:
