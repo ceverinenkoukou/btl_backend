@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from btl.models import Degustation, Vente, Produit, Site, RemoteUser
+from btl.models import Degustation, Vente, Produit, Site, RemoteUser, Campagne
 from btl.services.saisie_manuelle import resoudre_hotesse_et_verifier_site
 
 
@@ -103,6 +103,10 @@ class DegustationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Vous n'êtes pas assignée à ce site."
             )
+        if not site.campagne:
+            raise serializers.ValidationError(
+                "Ce site n'a pas de campagne produit — c'est un site service uniquement."
+            )
         return site
 
     def validate_produit(self, produit):
@@ -111,6 +115,8 @@ class DegustationSerializer(serializers.ModelSerializer):
         if site_id:
             try:
                 site = Site.objects.get(pk=site_id)
+                if not site.campagne:
+                    return produit  # déjà signalé par validate_site
                 if not site.campagne.get_produits_disponibles().filter(id=produit.id).exists():
                     raise serializers.ValidationError(
                         "Ce produit n'appartient pas à l'entreprise de cette campagne."
@@ -136,7 +142,13 @@ class DegustationSerializer(serializers.ModelSerializer):
 
         degustation = Degustation.objects.create(**validated_data)
 
-        if degustation.a_achete and not promotion_appliquee:
+        # Garde-fou : une campagne "Dégustation seule" ne doit jamais produire
+        # de Vente, même si a_achete=True a été envoyé par erreur (la
+        # question achat est retirée du formulaire pour ce type de campagne,
+        # mais on ne fait pas confiance uniquement au frontend pour ça).
+        campagne_vente_autorisee = site.campagne.type_campagne != Campagne.TypeCampagne.DEGUSTATION
+
+        if degustation.a_achete and not promotion_appliquee and campagne_vente_autorisee:
             Vente.objects.create(
                 degustation=degustation,
                 hotesse=hotesse,

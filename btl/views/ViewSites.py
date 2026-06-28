@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Q
 
 from btl.models import Site, RemoteUser
 from btl.permissions import IsAdmin, IsPasswordChanged
@@ -38,7 +39,11 @@ class SiteViewSet(viewsets.ModelViewSet):
             return Site.objects.all()
 
         if user.role == RemoteUser.Roles.ENTREPRISES:
-            return Site.objects.filter(campagne__entreprise__user=user)
+            # Inclut les sites sans campagne produit, rattachés uniquement
+            # à une campagne service de cette entreprise.
+            return Site.objects.filter(
+                Q(campagne__entreprise__user=user) | Q(campagnes_services__entreprise__user=user)
+            ).distinct()
 
         if user.role == RemoteUser.Roles.SUPERVISEUR:
             return user.sites_supervises.all()

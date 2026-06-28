@@ -4,9 +4,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from btl.models import Vente, RemoteUser, Campagne
+from btl.models import Vente, RemoteUser, Campagne, Site, Produit
 from btl.permissions import IsPasswordChanged
-from btl.serializers.VenteSerializer import VenteSerializer
+from btl.serializers.VenteSerializer import VenteSerializer, CreerVenteDirecteSerializer
+from btl.services.saisie_manuelle import resoudre_hotesse_et_verifier_site
 
 
 class VenteViewSet(viewsets.ReadOnlyModelViewSet):
@@ -94,3 +95,35 @@ class VenteViewSet(viewsets.ReadOnlyModelViewSet):
             'ventes_en_pack': totaux['ventes_pack'] or 0,
             'ventes_a_lunite': totaux['ventes_unite'] or 0,
         })
+
+    @action(detail=False, methods=['post'], url_path='creer-directe')
+    def creer_directe(self, request):
+        """
+        POST /api/ventes/creer-directe/
+        Crée une vente directe (sans dégustation, sans promo), réservée aux
+        campagnes de type VENTE sans mécanique promotionnelle. Pour une
+        campagne VENTE avec promo, utiliser POST /promotions/{id}/enregistrer-gain/.
+        """
+        serializer = CreerVenteDirecteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        site = Site.objects.get(id=data['site_id'])
+        produit = Produit.objects.get(id=data['produit_id'])
+
+        # Lève PermissionDenied/ValidationError (gérées automatiquement par
+        # DRF) si l'appelant n'a pas le droit de saisir pour ce site/cette
+        # hôtesse. Pour une hôtesse, hotesse == request.user (hotesse_id ignoré).
+        hotesse = resoudre_hotesse_et_verifier_site(request.user, site, data.get('hotesse_id'))
+
+        vente = Vente.objects.create(
+            hotesse=hotesse,
+            site=site,
+            produit=produit,
+            conditionnement=data['conditionnement'],
+            quantite=data['quantite'],
+            type_vente=Vente.TypeVente.NORMAL,
+            nom_client=data.get('nom_client', '').strip() or None,
+        )
+
+        return Response(VenteSerializer(vente).data, status=status.HTTP_201_CREATED)

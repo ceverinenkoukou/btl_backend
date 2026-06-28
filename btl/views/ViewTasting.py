@@ -97,6 +97,12 @@ class DegustationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        if not site.campagne:
+            return Response(
+                {"detail": "Ce site n'a pas de campagne produit (dégustation/vente) — c'est un site service uniquement."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         produits = site.campagne.get_produits_disponibles()
 
         produits_data = [
@@ -147,6 +153,10 @@ class DegustationViewSet(viewsets.ModelViewSet):
             'campagne_id': str(site.campagne.id),
             'campagne_nom': site.campagne.nom,
             'entreprise_nom': site.campagne.entreprise.nom_commercial,
+            # Pilote la variante de formulaire affichée côté hôtesse
+            # (dégustation seule / vente seule / dégustation + vente).
+            'type_campagne': site.campagne.type_campagne,
+            'type_campagne_display': site.campagne.get_type_campagne_display(),
             'type_recompense': site.campagne.type_recompense,
             'type_recompense_display': site.campagne.get_type_recompense_display(),
             'note_gout_active': site.campagne.note_gout_active,

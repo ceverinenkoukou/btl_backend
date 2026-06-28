@@ -46,6 +46,10 @@ from btl.views.ViewRapportJournalierConfig import RapportJournalierConfigViewSet
 from btl.views.ViewPointage import PointageViewSet
 from btl.views.ViewLivraisonGoodiesJour import LivraisonGoodiesJourViewSet
 from btl.views.ViewDonneesSiteJour import DonneesSiteJourViewSet
+from services.views import (
+    CampagneServiceViewSet, ServiceViewSet, ObjectifCampagneServiceViewSet,
+    SondageViewSet, RecompenseServiceViewSet, GainRecompenseServiceViewSet,
+)
 
 router = DefaultRouter()
 router.register(r'users', RemoteUserViewSet, basename='user')
@@ -69,6 +73,12 @@ router.register(r'rapport-journalier-configs', RapportJournalierConfigViewSet, b
 router.register(r'pointages', PointageViewSet, basename='pointage')
 router.register(r'livraisons-goodies', LivraisonGoodiesJourViewSet, basename='livraison-goodie')
 router.register(r'donnees-site-jour', DonneesSiteJourViewSet, basename='donnees-site-jour')
+router.register(r'campagnes-services', CampagneServiceViewSet, basename='campagne-service')
+router.register(r'services-promus', ServiceViewSet, basename='service-promu')
+router.register(r'objectifs-campagnes-services', ObjectifCampagneServiceViewSet, basename='objectif-campagne-service')
+router.register(r'sondages', SondageViewSet, basename='sondage')
+router.register(r'recompenses-services', RecompenseServiceViewSet, basename='recompense-service')
+router.register(r'gains-recompenses-services', GainRecompenseServiceViewSet, basename='gain-recompense-service')
 
 urlpatterns = [
     path("admin/", admin.site.urls),

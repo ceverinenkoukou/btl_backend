@@ -11,6 +11,7 @@ from btl.models import Entreprise, RemoteUser, Produit
 from btl.permissions import IsAdmin, IsPasswordChanged
 from btl.serializers import EntrepriseSerializer, CreateEntrepriseSerializer
 from btl.services.email_service import generer_mot_de_passe_provisoire, envoyer_email_bienvenue_entreprise
+from services.models import Service
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +49,11 @@ class EntrepriseViewSet(viewsets.ModelViewSet):
           - le RemoteUser (rôle Entreprise)
           - le profil Entreprise
           - les Produits fournis (optionnel)
+          - les Services fournis (optionnel — app services, campagnes service)
         Génère un mot de passe provisoire et envoie l'email de bienvenue.
 
         Payload minimal  : { "email": "...", "nom_commercial": "..." }
-        Payload complet  : + telephone, adresse, branding, produits[]
+        Payload complet  : + telephone, adresse, branding, produits[], services[]
         """
         serializer = CreateEntrepriseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -88,6 +90,17 @@ class EntrepriseViewSet(viewsets.ModelViewSet):
                         prix_indicatif=p.get('prix_indicatif'),
                     )
                     for p in produits_data
+                ])
+
+            services_data = data.get('services', [])
+            if services_data:
+                Service.objects.bulk_create([
+                    Service(
+                        entreprise=entreprise,
+                        nom=s['nom'],
+                        description=s.get('description') or '',
+                    )
+                    for s in services_data
                 ])
 
         email_sent = False
