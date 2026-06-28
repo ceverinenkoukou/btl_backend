@@ -1,0 +1,6 @@
+from .ViewCampagneService import CampagneServiceViewSet
+from .ViewService import ServiceViewSet
+from .ViewObjectifCampagneService import ObjectifCampagneServiceViewSet
+from .ViewSondage import SondageViewSet
+from .ViewRecompenseService import RecompenseServiceViewSet
+from .ViewGainRecompenseService import GainRecompenseServiceViewSet

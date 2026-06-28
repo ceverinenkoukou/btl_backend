@@ -238,10 +238,16 @@ class Campagne(BaseModel):
     def __str__(self):
         return f"{self.nom} - {self.entreprise.nom_commercial} ({self.get_type_campagne_display()})"
 class Site(BaseModel):
+    # Optionnel : un site peut n'exister que pour une campagne service
+    # (app services, entreprise sans aucune activité produit). cf. décision
+    # du 2026-06-28 — "rendre Site.campagne optionnelle" plutôt qu'imposer
+    # une campagne produit fictive.
     campagne = models.ForeignKey(
         Campagne,
         on_delete=models.CASCADE,
-        related_name='sites'
+        related_name='sites',
+        null=True,
+        blank=True,
     )
     nom = models.CharField(max_length=255)
     ville = models.CharField(max_length=100, default="Libreville")
@@ -262,7 +268,7 @@ class Site(BaseModel):
     goodies = models.ManyToManyField(Goodie, through='StockGoodieSite', related_name='sites')
 
     def __str__(self):
-        return f"{self.nom} ({self.campagne.nom})"
+        return f"{self.nom} ({self.campagne.nom})" if self.campagne else self.nom
 
 
 class StockGoodieSite(BaseModel):

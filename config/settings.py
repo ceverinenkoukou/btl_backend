@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     # Local
     "btl.core",
     "btl",
+    "services",
 ]
 
 MIDDLEWARE = [

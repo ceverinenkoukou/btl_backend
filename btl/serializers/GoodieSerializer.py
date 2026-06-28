@@ -125,8 +125,10 @@ class AllouerGoodieSerializer(serializers.Serializer):
         site = data['site_id']
 
         if goodie and goodie.campagne:
-            # Vérifier que le site appartient à la même campagne que le goodie
-            if site.campagne.id != goodie.campagne.id:
+            # site.campagne_id (pas .campagne.id) : reste sûr même si le site
+            # n'a pas de campagne produit (site service uniquement) — la
+            # comparaison avec None échoue alors naturellement la validation.
+            if site.campagne_id != goodie.campagne_id:
                 raise serializers.ValidationError(
                     {"site_id": "Le site doit appartenir à la même campagne que le goodie."}
                 )

@@ -5,9 +5,15 @@ from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Produit, Promo
 class GainGoodieSerializer(serializers.ModelSerializer):
     goodie_nom = serializers.CharField(source='goodie.nom', read_only=True)
     site_nom = serializers.CharField(source='site.nom', read_only=True)
-    campagne = serializers.UUIDField(source='site.campagne.id', read_only=True)
-    campagne_nom = serializers.CharField(source='site.campagne.nom', read_only=True)
+    campagne = serializers.SerializerMethodField()
+    campagne_nom = serializers.SerializerMethodField()
     hotesse_nom = serializers.CharField(source='hotesse.name', read_only=True)
+
+    def get_campagne(self, obj):
+        return str(obj.site.campagne_id) if obj.site.campagne_id else None
+
+    def get_campagne_nom(self, obj):
+        return obj.site.campagne.nom if obj.site.campagne else None
     promotion_nom = serializers.CharField(source='promotion.recompense_description', read_only=True)
     promotion_quantite_requise = serializers.IntegerField(source='promotion.quantite_requise', read_only=True)
     promotion_quantite_offerte = serializers.IntegerField(source='promotion.quantite_offerte', read_only=True)

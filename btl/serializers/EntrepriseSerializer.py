@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from btl.models import Entreprise, RemoteUser
 from .ProduitSerializer import ProduitSerializer, ProduitCreateSerializer
+from services.serializers import ServiceSerializer, ServiceCreateSerializer
 
 
 class EntrepriseSerializer(serializers.ModelSerializer):
@@ -8,6 +9,7 @@ class EntrepriseSerializer(serializers.ModelSerializer):
     nom_utilisateur = serializers.CharField(source='user.name', read_only=True)
     is_password_changed = serializers.BooleanField(source='user.is_password_changed', read_only=True)
     produits = ProduitSerializer(many=True, read_only=True)
+    services = ServiceSerializer(many=True, read_only=True)
 
     class Meta:
         model = Entreprise
@@ -15,7 +17,7 @@ class EntrepriseSerializer(serializers.ModelSerializer):
             'id', 'nom_commercial', 'telephone', 'adresse',
             'couleur_primaire', 'couleur_secondaire', 'logo_url',
             'email', 'nom_utilisateur', 'is_password_changed',
-            'produits', 'created_at'
+            'produits', 'services', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
 
@@ -38,6 +40,7 @@ class CreateEntrepriseSerializer(serializers.Serializer):
     couleur_secondaire = serializers.CharField(max_length=7, required=False, default='#00899b')
     logo_url = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     produits = ProduitCreateSerializer(many=True, required=False, default=list)
+    services = ServiceCreateSerializer(many=True, required=False, default=list)
 
     def validate_email(self, value):
         if RemoteUser.objects.filter(email=value).exists():
