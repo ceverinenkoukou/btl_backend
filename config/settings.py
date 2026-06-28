@@ -127,10 +127,12 @@ SIMPLE_JWT = {
 # --- CORS ---
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000,https://www.mhediabtl-ga.com/',
+    default='http://localhost:3000,http://127.0.0.1:3000,https://www.mhediabtl-ga.com',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 CORS_ALLOW_HEADERS = [
     'accept',
