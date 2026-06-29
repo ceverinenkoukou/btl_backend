@@ -108,38 +108,36 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
                 # Récupérer les objets
                 goodie = Goodie.objects.get(id=goodie_id)
                 promotion = Promotion.objects.get(id=promotion_id) if promotion_id else None
-                is_promo_wheel = promotion and promotion.type_promotion in ('TIRAGE', 'GAGNE')
 
-                stock = None
-                if not is_promo_wheel:
-                    # Vérifier le stock du jour sur ce site (OFFERT uniquement) —
-                    # c'est lui qui limite la roue ; sans livraison du jour ou
-                    # stock du jour épuisé, on refuse le gain.
-                    try:
-                        livraison = LivraisonGoodiesJour.objects.get(
-                            site=site, goodie=goodie, date=timezone.localdate()
-                        )
-                    except LivraisonGoodiesJour.DoesNotExist:
-                        return Response(
-                            {"detail": "Aucun stock de ce goodie livré aujourd'hui sur ce site."},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                    if livraison.restants_du_jour <= 0:
-                        return Response(
-                            {"detail": "Stock du jour insuffisant pour ce goodie sur ce site."},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-
-                    # Décompte du stock général (cumulé par site)
-                    stock = StockGoodieSite.objects.get(
-                        goodie=goodie,
-                        site=site
+                # Vérifier le stock du jour sur ce site — qu'il s'agisse de la
+                # roue "Goodies" classique ou d'une roue déclenchée par une
+                # promotion TIRAGE/GAGNE, un goodie sans livraison du jour ou
+                # au stock du jour épuisé ne peut pas être gagné.
+                try:
+                    livraison = LivraisonGoodiesJour.objects.get(
+                        site=site, goodie=goodie, date=timezone.localdate()
                     )
-                    if not stock.distribuer(1):
-                        return Response(
-                            {"detail": "Stock insuffisant pour ce goodie."},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
+                except LivraisonGoodiesJour.DoesNotExist:
+                    return Response(
+                        {"detail": "Aucun stock de ce goodie livré aujourd'hui sur ce site."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                if livraison.restants_du_jour <= 0:
+                    return Response(
+                        {"detail": "Stock du jour insuffisant pour ce goodie sur ce site."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                # Décompte du stock général (cumulé par site)
+                stock = StockGoodieSite.objects.get(
+                    goodie=goodie,
+                    site=site
+                )
+                if not stock.distribuer(1):
+                    return Response(
+                        {"detail": "Stock insuffisant pour ce goodie."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
                 
                 # Créer l'enregistrement du gain
                 gain = GainGoodie.objects.create(
@@ -172,6 +170,9 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
                         "detail": f"Goodie '{goodie.nom}' remporté avec succès.",
                         "gain": serializer.data,
                         "stock_restant": stock.quantite_restante if stock else None,
+                        # Stock du jour sur ce site, après ce gain (recalculé : la
+                        # propriété recompte les GainGoodie du jour à chaque accès).
+                        "stock_jour_restant": livraison.restants_du_jour,
                         "produit_associe": {
                             "nom": goodie.produit_associe.nom if goodie.produit_associe else None,
                             "quantite_remise": quantite_produit

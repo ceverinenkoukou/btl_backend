@@ -3,8 +3,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
+from django.utils import timezone
 
-from btl.models import Promotion, GainPromotion, Site, Vente, Produit, Degustation
+from btl.models import Promotion, GainPromotion, Site, Vente, Produit, Degustation, LivraisonGoodiesJour
 from btl.permissions import IsAdmin, IsPasswordChanged
 from btl.serializers import PromotionSerializer
 from btl.services.saisie_manuelle import resoudre_hotesse_et_verifier_site
@@ -161,13 +162,22 @@ class PromotionViewSet(viewsets.ModelViewSet):
                         "quantite": promotion.quantite_offerte,
                     })
 
-        # Préparer les données de tirage si applicable
+        # Préparer les données de tirage si applicable — seuls les goodies
+        # avec un stock du jour disponible sur ce site apparaissent sur la
+        # roue (même règle que pour la roue "Goodies" classique).
         tirage_disponible = promotion.type_promotion == Promotion.TypePromotion.TIRAGE
         goodies_roue = []
         if tirage_disponible:
+            restants_par_goodie = {
+                livraison.goodie_id: livraison.restants_du_jour
+                for livraison in LivraisonGoodiesJour.objects.filter(
+                    site=site, date=timezone.localdate()
+                )
+            }
             goodies_roue = [
                 {"id": str(g.id), "nom": g.nom}
                 for g in promotion.goodies.all()
+                if restants_par_goodie.get(g.id, 0) > 0
             ]
 
         return Response({
