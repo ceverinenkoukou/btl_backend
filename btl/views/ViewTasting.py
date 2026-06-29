@@ -3,8 +3,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
+from django.utils import timezone
 
-from btl.models import Degustation, Site, RemoteUser, Campagne
+from btl.models import Degustation, Site, RemoteUser, Campagne, LivraisonGoodiesJour
 from btl.permissions import IsPasswordChanged
 from btl.serializers.DegustationSerializer import DegustationSerializer
 from btl.serializers.PromotionSerializer import PromotionSerializer
@@ -113,21 +114,25 @@ class DegustationViewSet(viewsets.ModelViewSet):
             }
             for p in produits
         ]
-        # Tous les goodies de la campagne doivent apparaître sur la roue de chaque
-        # site (même sans stock alloué côté StockGoodieSite) : le décompte du stock
-        # se fait au moment où l'hôtesse confirme un gain (cf. GainGoodieViewSet.enregistrer),
-        # avec un message "stock insuffisant" et l'option de relancer la roue.
-        stocks_par_goodie = {
-            stock.goodie_id: stock.quantite_restante
-            for stock in site.stocks_goodies.all()
+        # Seuls les goodies livrés aujourd'hui sur ce site (LivraisonGoodiesJour),
+        # avec un stock du jour encore disponible, apparaissent sur la roue.
+        # Un goodie sans livraison saisie pour la date du jour vaut 0 et
+        # disparaît donc de la roue de ce site (mais peut être disponible sur
+        # un autre site qui l'a, lui, reçu aujourd'hui).
+        restants_par_goodie = {
+            livraison.goodie_id: livraison.restants_du_jour
+            for livraison in LivraisonGoodiesJour.objects.filter(
+                site=site, date=timezone.localdate()
+            ).select_related('goodie')
         }
         goodies_data = [
             {
                 'id': str(goodie.id),
                 'nom': goodie.nom,
-                'quantite_restante': stocks_par_goodie.get(goodie.id, 0)
+                'quantite_restante': restants_par_goodie[goodie.id],
             }
             for goodie in site.campagne.goodies.all()
+            if restants_par_goodie.get(goodie.id, 0) > 0
         ]
 
         # Récupérer les promotions actives de la campagne si type_recompense = PROMOTIONS

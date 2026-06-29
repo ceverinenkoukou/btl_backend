@@ -53,7 +53,13 @@ class LivraisonGoodiesJourViewSet(viewsets.ModelViewSet):
         serializer.save(enregistre_par=self.request.user)
 
     def create(self, request, *args, **kwargs):
-        """Création ou mise à jour de la livraison du jour (upsert)."""
+        """
+        Création ou réapprovisionnement de la livraison du jour (upsert).
+        Si une livraison existe déjà pour (site, goodie, date), la quantité
+        envoyée s'ADDITIONNE à `quantite_apportee` au lieu de l'écraser —
+        permet de réapprovisionner un site en cours de journée sans avoir à
+        recalculer le total déjà livré.
+        """
         site_id = request.data.get('site')
         goodie_id = request.data.get('goodie')
         date = request.data.get('date')
@@ -63,7 +69,9 @@ class LivraisonGoodiesJourViewSet(viewsets.ModelViewSet):
                 existing = LivraisonGoodiesJour.objects.get(
                     site_id=site_id, goodie_id=goodie_id, date=date
                 )
-                serializer = self.get_serializer(existing, data=request.data, partial=True)
+                quantite_ajoutee = int(request.data.get('quantite_apportee', 0))
+                data = {**request.data, 'quantite_apportee': existing.quantite_apportee + quantite_ajoutee}
+                serializer = self.get_serializer(existing, data=data, partial=True)
                 serializer.is_valid(raise_exception=True)
                 serializer.save(enregistre_par=request.user)
                 return Response(serializer.data, status=status.HTTP_200_OK)

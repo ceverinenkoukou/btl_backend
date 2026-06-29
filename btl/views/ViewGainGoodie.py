@@ -4,8 +4,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 
-from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Vente, RemoteUser, Produit, Campagne, Promotion, Degustation
+from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Vente, RemoteUser, Produit, Campagne, Promotion, Degustation, LivraisonGoodiesJour
 from btl.permissions import IsPasswordChanged
 from btl.serializers.GainGoodieSerializer import GainGoodieSerializer, EnregistrerGainGoodieSerializer
 from btl.services.saisie_manuelle import resoudre_hotesse_et_verifier_site
@@ -63,8 +64,9 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
         POST /api/gains-goodies/enregistrer/
         
         Enregistre qu'une hôtesse a gagné un goodie via la roue de la fortune.
-        Décompte automatiquement :
-        - Le goodie du stock StockGoodieSite
+        Vérifie le stock du jour (LivraisonGoodiesJour) puis décompte automatiquement :
+        - Le goodie du stock du jour (via le comptage des GainGoodie du jour)
+        - Le goodie du stock général StockGoodieSite
         - Le produit associé via une Vente
         
         Payload:
@@ -110,7 +112,25 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
 
                 stock = None
                 if not is_promo_wheel:
-                    # Vérifier et décompter le stock du goodie (OFFERT uniquement)
+                    # Vérifier le stock du jour sur ce site (OFFERT uniquement) —
+                    # c'est lui qui limite la roue ; sans livraison du jour ou
+                    # stock du jour épuisé, on refuse le gain.
+                    try:
+                        livraison = LivraisonGoodiesJour.objects.get(
+                            site=site, goodie=goodie, date=timezone.localdate()
+                        )
+                    except LivraisonGoodiesJour.DoesNotExist:
+                        return Response(
+                            {"detail": "Aucun stock de ce goodie livré aujourd'hui sur ce site."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    if livraison.restants_du_jour <= 0:
+                        return Response(
+                            {"detail": "Stock du jour insuffisant pour ce goodie sur ce site."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                    # Décompte du stock général (cumulé par site)
                     stock = StockGoodieSite.objects.get(
                         goodie=goodie,
                         site=site
