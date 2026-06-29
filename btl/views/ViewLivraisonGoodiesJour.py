@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from btl.models import LivraisonGoodiesJour, RemoteUser
+from btl.models import LivraisonGoodiesJour, RemoteUser, StockGoodieSite
 from btl.permissions import IsPasswordChanged, IsSuperviseurOrAdmin
 from btl.serializers.LivraisonGoodiesJourSerializer import LivraisonGoodiesJourSerializer
 
@@ -59,6 +59,10 @@ class LivraisonGoodiesJourViewSet(viewsets.ModelViewSet):
         envoyée s'ADDITIONNE à `quantite_apportee` au lieu de l'écraser —
         permet de réapprovisionner un site en cours de journée sans avoir à
         recalculer le total déjà livré.
+
+        Chaque quantité livrée alimente aussi le stock général
+        (StockGoodieSite), créé automatiquement si besoin — la livraison du
+        jour est la source, le stock général n'est qu'un cumul dérivé.
         """
         site_id = request.data.get('site')
         goodie_id = request.data.get('goodie')
@@ -74,8 +78,21 @@ class LivraisonGoodiesJourViewSet(viewsets.ModelViewSet):
                 serializer = self.get_serializer(existing, data=data, partial=True)
                 serializer.is_valid(raise_exception=True)
                 serializer.save(enregistre_par=request.user)
+                self._alimenter_stock_general(site_id, goodie_id, quantite_ajoutee)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             except LivraisonGoodiesJour.DoesNotExist:
                 pass
 
-        return super().create(request, *args, **kwargs)
+        response = super().create(request, *args, **kwargs)
+        if response.status_code == status.HTTP_201_CREATED and site_id and goodie_id:
+            self._alimenter_stock_general(site_id, goodie_id, int(request.data.get('quantite_apportee', 0)))
+        return response
+
+    def _alimenter_stock_general(self, site_id, goodie_id, quantite):
+        """Reporte une quantité livrée sur le stock général cumulé du site."""
+        if quantite <= 0:
+            return
+        stock, _ = StockGoodieSite.objects.get_or_create(site_id=site_id, goodie_id=goodie_id)
+        stock.quantite_initiale += quantite
+        stock.quantite_restante += quantite
+        stock.save(update_fields=['quantite_initiale', 'quantite_restante'])
