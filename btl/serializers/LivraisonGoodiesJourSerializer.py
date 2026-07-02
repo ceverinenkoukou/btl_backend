@@ -22,6 +22,7 @@ class LivraisonGoodiesJourSerializer(serializers.ModelSerializer):
             'quantite_apportee',
             'gains_du_jour',
             'restants_du_jour',
+            'est_report',
             'enregistre_par', 'enregistre_par_nom',
             'created_at',
         ]

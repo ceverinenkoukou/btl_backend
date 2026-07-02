@@ -846,6 +846,10 @@ class LivraisonGoodiesJour(BaseModel):
         RemoteUser, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='livraisons_goodies_enregistrees'
     )
+    est_report = models.BooleanField(
+        default=False,
+        help_text="Créé automatiquement par report des restants de la veille (tâche nocturne)"
+    )
 
     class Meta:
         unique_together = ('site', 'goodie', 'date')

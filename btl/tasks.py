@@ -73,6 +73,43 @@ def task_generer_rapports_journaliers(date_str=None):
             )
 
 
+@app.task
+def task_reporter_stock_goodies(date_str=None):
+    """
+    Reporte les restants du jour vers le lendemain pour chaque (site, goodie).
+    Crée une LivraisonGoodiesJour avec est_report=True si aucune livraison
+    n'existe déjà pour le lendemain — sans toucher à StockGoodieSite (déjà
+    comptabilisé lors de la livraison initiale).
+    Planifié chaque soir à 23h45, après la génération des rapports (23h00).
+    """
+    from datetime import date as date_type, timedelta
+    from btl.models import LivraisonGoodiesJour
+
+    today = date_type.fromisoformat(date_str) if date_str else date_type.today()
+    tomorrow = today + timedelta(days=1)
+
+    livraisons = LivraisonGoodiesJour.objects.filter(date=today).select_related('site', 'goodie')
+    created_count = 0
+
+    for livraison in livraisons:
+        restants = livraison.restants_du_jour
+        if restants <= 0:
+            continue
+        _, created = LivraisonGoodiesJour.objects.get_or_create(
+            site=livraison.site,
+            goodie=livraison.goodie,
+            date=tomorrow,
+            defaults={
+                'quantite_apportee': restants,
+                'est_report': True,
+            }
+        )
+        if created:
+            created_count += 1
+
+    return f"Report goodies : {created_count} livraison(s) créée(s) pour le {tomorrow}"
+
+
 @app.task(bind=True, max_retries=3)
 def task_envoyer_email_bienvenue_entreprise(self, entreprise_id, password):
     # Imports locaux à l'intérieur de la tâche
