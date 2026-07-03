@@ -13,16 +13,23 @@ def task_generer_rapports_journaliers(date_str=None):
     from datetime import date as date_type
     from decimal import Decimal
     from django.db.models import Q, Sum
-    from btl.models import Site, Degustation, Vente, RapportJournalier, SiteProduitPrix, GainGoodie, Pointage
+    from btl.models import Campagne, Site, Degustation, Vente, RapportJournalier, SiteProduitPrix, GainGoodie, Pointage
 
     target_date = date_type.fromisoformat(date_str) if date_str else date_type.today()
 
     for site in Site.objects.prefetch_related('hotesses', 'superviseurs', 'campagne').all():
         site_hotesses_count = site.hotesses.count()
+        campagne_type = getattr(site.campagne, 'type_campagne', None) if site.campagne else None
         for hotesse in site.hotesses.all():
-            nb_deg = Degustation.objects.filter(
-                site=site, hotesse=hotesse, created_at__date=target_date
-            ).count()
+            # Les campagnes VENTE n'ont pas de véritables dégustations :
+            # les enregistrements Degustation y sont créés comme ancre de session
+            # mais ne doivent pas gonfler le compteur nb_degustations.
+            if campagne_type == Campagne.TypeCampagne.VENTE:
+                nb_deg = 0
+            else:
+                nb_deg = Degustation.objects.filter(
+                    site=site, hotesse=hotesse, created_at__date=target_date
+                ).count()
 
             ventes_qs = Vente.objects.filter(
                 site=site, hotesse=hotesse, created_at__date=target_date
@@ -41,9 +48,12 @@ def task_generer_rapports_journaliers(date_str=None):
                     prix = vente.produit.prix_indicatif or Decimal('0')
                 ca += prix * vente.quantite
 
-            goodies_filter = Q(degustation__hotesse=hotesse)
+            # Priorité 1 : lien via Degustation (campagnes DEGUSTATION)
+            # Priorité 2 : GainGoodie.hotesse direct (campagnes VENTE après nettoyage)
+            # Pour les sites mono-hôtesse : tout gain sans lien appartient à l'unique hôtesse
+            goodies_filter = Q(degustation__hotesse=hotesse) | Q(hotesse=hotesse)
             if site_hotesses_count == 1:
-                goodies_filter |= Q(degustation__isnull=True)
+                goodies_filter |= Q(degustation__isnull=True, hotesse__isnull=True)
 
             nb_goodies = GainGoodie.objects.filter(
                 site=site,
