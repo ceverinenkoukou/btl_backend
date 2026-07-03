@@ -56,7 +56,7 @@ class VenteSerializer(serializers.ModelSerializer):
             'produit', 'produit_nom',
             'conditionnement', 'conditionnement_display',
             'quantite', 'prix_total', 'type_vente',
-            'nom_client', 'est_achat_promo',
+            'nom_client', 'tranche_age', 'genre', 'est_achat_promo',
             'created_at',
         ]
         read_only_fields = ['id', 'created_at']
@@ -84,6 +84,8 @@ class CreerVenteDirecteSerializer(serializers.Serializer):
     conditionnement = serializers.ChoiceField(choices=Vente.TypeConditionnement.choices)
     quantite = serializers.IntegerField(min_value=1, default=1)
     nom_client = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    tranche_age = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True, default=None)
+    genre = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True, default=None)
     hotesse_id = serializers.UUIDField(required=False, allow_null=True, default=None)
 
     def validate_site_id(self, value):

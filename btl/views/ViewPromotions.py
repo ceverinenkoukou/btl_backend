@@ -132,6 +132,8 @@ class PromotionViewSet(viewsets.ModelViewSet):
                     quantite=promotion.quantite_requise,
                     type_vente=Vente.TypeVente.NORMAL,
                     nom_client=nom_client,
+                    tranche_age=request.data.get('tranche_age') or None,
+                    genre=request.data.get('genre') or None,
                 )
                 ventes_creees.append({
                     "type": "achat",
