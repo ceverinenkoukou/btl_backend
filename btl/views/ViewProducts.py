@@ -124,6 +124,8 @@ class VenteViewSet(viewsets.ReadOnlyModelViewSet):
             quantite=data['quantite'],
             type_vente=Vente.TypeVente.NORMAL,
             nom_client=data.get('nom_client', '').strip() or None,
+            tranche_age=data.get('tranche_age') or None,
+            genre=data.get('genre') or None,
         )
 
         return Response(VenteSerializer(vente).data, status=status.HTTP_201_CREATED)

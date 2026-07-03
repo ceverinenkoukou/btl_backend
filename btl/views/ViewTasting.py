@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from django.utils import timezone
 
-from btl.models import Degustation, Site, RemoteUser, Campagne, LivraisonGoodiesJour
+from btl.models import Campagne, Degustation, LivraisonGoodiesJour, RemoteUser, Site
 from btl.permissions import IsPasswordChanged
 from btl.serializers.DegustationSerializer import DegustationSerializer
 from btl.serializers.PromotionSerializer import PromotionSerializer
@@ -64,6 +64,20 @@ class DegustationViewSet(viewsets.ModelViewSet):
                 {"detail": "Vous n'avez pas les droits pour saisir une dégustation."},
                 status=status.HTTP_403_FORBIDDEN
             )
+        # Garde-fou : les campagnes VENTE n'utilisent pas la table Degustation.
+        # Les enregistrements passent par POST /ventes/creer-directe/ ou
+        # POST /promotions/{id}/enregistrer-gain/ selon le cas.
+        site_id = request.data.get('site')
+        if site_id:
+            try:
+                site = Site.objects.select_related('campagne').get(pk=site_id)
+                if site.campagne and site.campagne.type_campagne == Campagne.TypeCampagne.VENTE:
+                    return Response(
+                        {"detail": "Les campagnes VENTE enregistrent directement dans Vente. Utilisez /ventes/creer-directe/ ou /promotions/{id}/enregistrer-gain/."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except Site.DoesNotExist:
+                pass
         return super().create(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'], url_path='mon-site')

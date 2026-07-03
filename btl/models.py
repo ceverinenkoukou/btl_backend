@@ -370,6 +370,14 @@ class Vente(BaseModel):
     quantite = models.PositiveIntegerField(default=1)
     type_vente = models.CharField(max_length=10, choices=TypeVente.choices, default=TypeVente.NORMAL)
     nom_client = models.CharField(max_length=150, blank=True, null=True, help_text="Optionnel ou Prénom")
+    tranche_age = models.CharField(
+        max_length=20, choices=Degustation.TrancheAge.choices,
+        null=True, blank=True, help_text="Tranche d'âge du client (optionnel)"
+    )
+    genre = models.CharField(
+        max_length=10, choices=Degustation.Genre.choices,
+        null=True, blank=True, help_text="Genre du client (optionnel)"
+    )
 
     @property
     def prix_total(self):
