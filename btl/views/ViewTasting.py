@@ -36,22 +36,20 @@ class DegustationViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         if user.role == RemoteUser.Roles.ADMIN:
-            return Degustation.objects.all()
+            qs = Degustation.objects.all()
+        elif user.role == RemoteUser.Roles.HOTESSES:
+            qs = Degustation.objects.filter(hotesse=user)
+        elif user.role == RemoteUser.Roles.SUPERVISEUR:
+            qs = Degustation.objects.filter(site__in=user.sites_supervises.all())
+        elif user.role == RemoteUser.Roles.ENTREPRISES:
+            qs = Degustation.objects.filter(campagne__entreprise__user=user)
+        else:
+            return Degustation.objects.none()
 
-        if user.role == RemoteUser.Roles.HOTESSES:
-            return Degustation.objects.filter(hotesse=user)
-
-        if user.role == RemoteUser.Roles.SUPERVISEUR:
-            return Degustation.objects.filter(
-                site__in=user.sites_supervises.all()
-            )
-
-        if user.role == RemoteUser.Roles.ENTREPRISES:
-            return Degustation.objects.filter(
-                campagne__entreprise__user=user
-            )
-
-        return Degustation.objects.none()
+        campagne_id = self.request.query_params.get('campagne')
+        if campagne_id:
+            qs = qs.filter(campagne_id=campagne_id)
+        return qs
 
     def create(self, request, *args, **kwargs):
         # Hôtesse : saisit pour elle-même. Admin/Superviseur : saisie
