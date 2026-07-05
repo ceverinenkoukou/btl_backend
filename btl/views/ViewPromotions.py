@@ -146,9 +146,12 @@ class PromotionViewSet(viewsets.ModelViewSet):
                 gain.vente_achat = vente_achat
                 gain.save(update_fields=['vente_achat'])
 
-                # 2. Vente PROMOTION : le produit offert (si type OFFERT uniquement)
-                # TIRAGE ne génère pas de vente produit — la récompense passe par la roue
-                if promotion.type_promotion == Promotion.TypePromotion.OFFERT:
+                # 2. Vente PROMOTION : le produit offert (OFFERT et GAGNE offrent un
+                # produit physique ; TIRAGE récompense uniquement via la roue à goodies)
+                if promotion.type_promotion in (
+                    Promotion.TypePromotion.OFFERT,
+                    Promotion.TypePromotion.GAGNE,
+                ):
                     vente_offerte = Vente.objects.create(
                         hotesse=hotesse,
                         site=site,
