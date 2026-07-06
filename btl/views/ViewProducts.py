@@ -46,6 +46,10 @@ class VenteViewSet(viewsets.ReadOnlyModelViewSet):
         if site_id:
             qs = qs.filter(site_id=site_id)
 
+        date_str = self.request.query_params.get('date')
+        if date_str:
+            qs = qs.filter(created_at__date=date_str)
+
         return qs
 
     @action(detail=False, methods=['get'], url_path='stats')

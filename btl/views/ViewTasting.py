@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from btl.models import Campagne, Degustation, LivraisonGoodiesJour, RemoteUser, Site
@@ -49,6 +49,11 @@ class DegustationViewSet(viewsets.ModelViewSet):
         campagne_id = self.request.query_params.get('campagne')
         if campagne_id:
             qs = qs.filter(campagne_id=campagne_id)
+
+        date_str = self.request.query_params.get('date')
+        if date_str:
+            qs = qs.filter(created_at__date=date_str)
+
         return qs
 
     def create(self, request, *args, **kwargs):
@@ -77,6 +82,35 @@ class DegustationViewSet(viewsets.ModelViewSet):
             except Site.DoesNotExist:
                 pass
         return super().create(request, *args, **kwargs)
+
+    @action(detail=False, methods=['get'], url_path='stats')
+    def stats(self, request):
+        """
+        GET /api/degustations/stats/?campagne=<id>
+        Totaux agrégés pour la campagne, dans le périmètre de l'utilisateur connecté.
+        Utilisé par le dashboard hôtesse pour alimenter les barres de progression
+        sans avoir à charger l'ensemble des enregistrements.
+        """
+        qs = self.get_queryset()
+
+        campagne_id = request.query_params.get('campagne')
+        if campagne_id:
+            qs = qs.filter(campagne_id=campagne_id)
+
+        totaux = qs.aggregate(
+            total_degustations=Count('id'),
+            total_acheteurs=Count('id', filter=Q(a_achete=True)),
+        )
+
+        total = totaux['total_degustations'] or 0
+        acheteurs = totaux['total_acheteurs'] or 0
+        taux = round(acheteurs / total * 100, 1) if total > 0 else 0.0
+
+        return Response({
+            'total_degustations': total,
+            'total_acheteurs': acheteurs,
+            'taux_conversion': taux,
+        })
 
     @action(detail=False, methods=['get'], url_path='mon-site')
     def mon_site(self, request):
