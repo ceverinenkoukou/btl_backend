@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count, Q
+from django.db.models import Count, Max, Q
 from django.utils import timezone
 
 from btl.models import Campagne, Degustation, LivraisonGoodiesJour, RemoteUser, Site
@@ -160,17 +160,21 @@ class DegustationViewSet(viewsets.ModelViewSet):
             }
             for p in produits
         ]
-        # Seuls les goodies livrés aujourd'hui sur ce site (LivraisonGoodiesJour),
-        # avec un stock du jour encore disponible, apparaissent sur la roue.
-        # Un goodie sans livraison saisie pour la date du jour vaut 0 et
-        # disparaît donc de la roue de ce site (mais peut être disponible sur
-        # un autre site qui l'a, lui, reçu aujourd'hui).
+        # Goodies disponibles sur ce site : on cherche la date la plus récente
+        # avec une livraison enregistrée (pas nécessairement aujourd'hui), car
+        # une hôtesse peut avoir plusieurs jours de décalage entre deux sessions
+        # de travail. Si une livraison existe pour aujourd'hui elle est
+        # prioritaire (étant la plus récente) ; sinon on repart du stock restant
+        # de la dernière session.
+        last_livraison_date = LivraisonGoodiesJour.objects.filter(
+            site=site,
+        ).aggregate(Max('date'))['date__max']
         restants_par_goodie = {
             livraison.goodie_id: livraison.restants_du_jour
             for livraison in LivraisonGoodiesJour.objects.filter(
-                site=site, date=timezone.localdate()
+                site=site, date=last_livraison_date,
             ).select_related('goodie')
-        }
+        } if last_livraison_date else {}
         goodies_data = [
             {
                 'id': str(goodie.id),
