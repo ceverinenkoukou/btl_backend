@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
+from django.db.models import Max
 from django.utils import timezone
 
 from btl.models import Promotion, GainPromotion, Site, Vente, Produit, Degustation, LivraisonGoodiesJour
@@ -173,12 +174,15 @@ class PromotionViewSet(viewsets.ModelViewSet):
         tirage_disponible = promotion.type_promotion == Promotion.TypePromotion.TIRAGE
         goodies_roue = []
         if tirage_disponible:
+            last_livraison_date = LivraisonGoodiesJour.objects.filter(
+                site=site,
+            ).aggregate(Max('date'))['date__max']
             restants_par_goodie = {
                 livraison.goodie_id: livraison.restants_du_jour
                 for livraison in LivraisonGoodiesJour.objects.filter(
-                    site=site, date=timezone.localdate()
+                    site=site, date=last_livraison_date,
                 )
-            }
+            } if last_livraison_date else {}
             goodies_roue = [
                 {"id": str(g.id), "nom": g.nom}
                 for g in promotion.goodies.all()
