@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Max, Q
 from django.utils import timezone
 
 from btl.models import GainGoodie, Goodie, StockGoodieSite, Site, Vente, RemoteUser, Produit, Campagne, Promotion, Degustation, LivraisonGoodiesJour
@@ -109,17 +109,24 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
                 goodie = Goodie.objects.get(id=goodie_id)
                 promotion = Promotion.objects.get(id=promotion_id) if promotion_id else None
 
-                # Vérifier le stock du jour sur ce site — qu'il s'agisse de la
-                # roue "Goodies" classique ou d'une roue déclenchée par une
-                # promotion TIRAGE/GAGNE, un goodie sans livraison du jour ou
-                # au stock du jour épuisé ne peut pas être gagné.
+                # Vérifier le stock sur ce site : on utilise la livraison la
+                # plus récente (pas nécessairement aujourd'hui) car une hôtesse
+                # peut avoir plusieurs jours de décalage entre deux sessions.
+                last_livraison_date = LivraisonGoodiesJour.objects.filter(
+                    site=site, goodie=goodie,
+                ).aggregate(Max('date'))['date__max']
+                if last_livraison_date is None:
+                    return Response(
+                        {"detail": "Aucun stock de ce goodie livré sur ce site."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
                 try:
                     livraison = LivraisonGoodiesJour.objects.get(
-                        site=site, goodie=goodie, date=timezone.localdate()
+                        site=site, goodie=goodie, date=last_livraison_date,
                     )
                 except LivraisonGoodiesJour.DoesNotExist:
                     return Response(
-                        {"detail": "Aucun stock de ce goodie livré aujourd'hui sur ce site."},
+                        {"detail": "Aucun stock de ce goodie livré sur ce site."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
                 if livraison.restants_du_jour <= 0:
