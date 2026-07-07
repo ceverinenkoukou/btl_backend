@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("btl", "0049_fix_historical_livraisongoodiesjour_est_report"),
+        ("btl", "0049_historicallivraisongoodiesjour_est_report_and_more"),
     ]
 
     operations = [
