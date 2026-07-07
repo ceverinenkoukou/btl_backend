@@ -33,6 +33,7 @@ class RapportConfigSerializer(serializers.ModelSerializer):
             "show_section_horaires_sites",
             "show_section_stock_boissons",
             "show_section_ugs_livraisons",
+            "show_section_graphiques",
             # Colonnes
             "show_col_ca",
             "show_col_goodies",

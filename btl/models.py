@@ -739,6 +739,10 @@ class RapportConfig(BaseModel):
         default=True,
         help_text="Section : UGs (goodies) reçus / distribués / restants par site"
     )
+    show_section_graphiques = models.BooleanField(
+        default=True,
+        help_text="Section : Graphiques de comparaison par site (ventes, dégustations)"
+    )
 
     # ── Colonnes ──────────────────────────────────────────────────
     show_col_ca = models.BooleanField(default=True, help_text="Colonne : Chiffre d'affaires dans les tableaux")
