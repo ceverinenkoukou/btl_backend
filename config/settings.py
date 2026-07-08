@@ -173,6 +173,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'btl.tasks.task_reporter_stock_goodies',
         'schedule': crontab(hour=23, minute=45),
     },
+    'reporter-stock-boissons-gratuites-23h50': {
+        'task': 'btl.tasks.task_reporter_stock_boissons_gratuites',
+        'schedule': crontab(hour=23, minute=50),
+    },
 }
 
 

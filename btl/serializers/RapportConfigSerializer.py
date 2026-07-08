@@ -22,6 +22,7 @@ class RapportConfigSerializer(serializers.ModelSerializer):
             "show_kpi_ca",
             "show_kpi_goodies",
             "show_kpi_sites",
+            "show_kpi_personnes_touchees",
             # Sections
             "show_section_offres_promo",
             "show_section_gains_goodies",

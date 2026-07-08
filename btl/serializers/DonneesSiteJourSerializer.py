@@ -8,12 +8,16 @@ class DonneesSiteJourSerializer(serializers.ModelSerializer):
     campagne_nom = serializers.SerializerMethodField()
     enregistre_par_nom = serializers.CharField(source='enregistre_par.name', read_only=True)
     conditionnement_display = serializers.CharField(source='get_conditionnement_display', read_only=True)
+    restants_gratuites_du_jour = serializers.SerializerMethodField()
 
     def get_campagne(self, obj):
         return str(obj.site.campagne_id) if obj.site.campagne_id else None
 
     def get_campagne_nom(self, obj):
         return obj.site.campagne.nom if obj.site.campagne else None
+
+    def get_restants_gratuites_du_jour(self, obj):
+        return obj.restants_gratuites_du_jour
 
     class Meta:
         model = DonneesSiteJour
@@ -24,7 +28,8 @@ class DonneesSiteJourSerializer(serializers.ModelSerializer):
             'date',
             'conditionnement', 'conditionnement_display',
             'stock_boissons', 'nombre_boissons_gratuites',
+            'quantite_gratuites_recue', 'est_report_gratuites', 'restants_gratuites_du_jour',
             'enregistre_par', 'enregistre_par_nom',
             'created_at',
         ]
-        read_only_fields = ['id', 'created_at', 'enregistre_par']
+        read_only_fields = ['id', 'created_at', 'enregistre_par', 'restants_gratuites_du_jour']

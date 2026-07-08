@@ -378,6 +378,16 @@ class Vente(BaseModel):
         max_length=10, choices=Degustation.Genre.choices,
         null=True, blank=True, help_text="Genre du client (optionnel)"
     )
+    note_gout = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text="Note du goût (configurable par campagne, null si non activé)",
+        validators=[MinValueValidator(0), MaxValueValidator(10)]
+    )
+    note_ambiance = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text="Note d'ambiance (configurable par campagne, null si non activé)",
+        validators=[MinValueValidator(0), MaxValueValidator(10)]
+    )
 
     @property
     def prix_total(self):
@@ -715,6 +725,7 @@ class RapportConfig(BaseModel):
     show_kpi_ca = models.BooleanField(default=True, help_text="Afficher le KPI chiffre d'affaires")
     show_kpi_goodies = models.BooleanField(default=True, help_text="Afficher le KPI goodies distribués")
     show_kpi_sites = models.BooleanField(default=True, help_text="Afficher le KPI nombre de sites actifs")
+    show_kpi_personnes_touchees = models.BooleanField(default=True, help_text="Afficher le KPI personnes touchées (clients ayant participé à la campagne)")
 
     # ── Sections du rapport ───────────────────────────────────────
     show_section_offres_promo = models.BooleanField(default=True, help_text="Section : Offres promotionnelles")
@@ -908,6 +919,15 @@ class DonneesSiteJour(BaseModel):
         null=True, blank=True,
         help_text="Nombre de boissons offertes gratuitement sur le site (saisie manuelle)"
     )
+    quantite_gratuites_recue = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Quantité de boissons gratuites reçues/disponibles sur le site ce jour "
+                   "(saisie manuelle, ou reportée automatiquement du restant de la veille)"
+    )
+    est_report_gratuites = models.BooleanField(
+        default=False,
+        help_text="Créé automatiquement par report du restant de boissons gratuites de la veille (tâche nocturne)"
+    )
     enregistre_par = models.ForeignKey(
         RemoteUser, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='donnees_sites_jour_enregistrees'
@@ -918,6 +938,13 @@ class DonneesSiteJour(BaseModel):
         ordering = ['-date']
         verbose_name = "Données site (jour)"
         verbose_name_plural = "Données sites (jour)"
+
+    @property
+    def restants_gratuites_du_jour(self):
+        """None si aucune quantité reçue n'a été saisie (pas de suivi de stock ce jour-là)."""
+        if self.quantite_gratuites_recue is None:
+            return None
+        return max(0, self.quantite_gratuites_recue - (self.nombre_boissons_gratuites or 0))
 
     def __str__(self):
         return f"Données {self.site.nom} — {self.date}"
