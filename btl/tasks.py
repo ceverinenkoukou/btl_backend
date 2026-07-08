@@ -120,6 +120,44 @@ def task_reporter_stock_goodies(date_str=None):
     return f"Report goodies : {created_count} livraison(s) créée(s) pour le {tomorrow}"
 
 
+@app.task
+def task_reporter_stock_boissons_gratuites(date_str=None):
+    """
+    Reporte le restant de boissons gratuites du jour vers le lendemain, par site.
+    Crée une DonneesSiteJour avec est_report_gratuites=True si aucune entrée
+    n'existe déjà pour le lendemain sur ce site (même logique que
+    task_reporter_stock_goodies, mais au grain site+jour au lieu de site+goodie
+    puisque DonneesSiteJour n'a pas de dimension goodie).
+    Planifié chaque soir à 23h50, après le report des goodies (23h45).
+    """
+    from datetime import date as date_type, timedelta
+    from btl.models import DonneesSiteJour
+
+    today = date_type.fromisoformat(date_str) if date_str else date_type.today()
+    tomorrow = today + timedelta(days=1)
+
+    entries = DonneesSiteJour.objects.filter(date=today).select_related('site')
+    created_count = 0
+
+    for entry in entries:
+        restants = entry.restants_gratuites_du_jour
+        if not restants:
+            continue
+        _, created = DonneesSiteJour.objects.get_or_create(
+            site=entry.site,
+            date=tomorrow,
+            defaults={
+                'quantite_gratuites_recue': restants,
+                'est_report_gratuites': True,
+                'conditionnement': entry.conditionnement,
+            }
+        )
+        if created:
+            created_count += 1
+
+    return f"Report boissons gratuites : {created_count} entrée(s) créée(s) pour le {tomorrow}"
+
+
 @app.task(bind=True, max_retries=3)
 def task_envoyer_email_bienvenue_entreprise(self, entreprise_id, password):
     # Imports locaux à l'intérieur de la tâche

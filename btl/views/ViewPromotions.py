@@ -135,6 +135,8 @@ class PromotionViewSet(viewsets.ModelViewSet):
                     nom_client=nom_client,
                     tranche_age=request.data.get('tranche_age') or None,
                     genre=request.data.get('genre') or None,
+                    note_gout=request.data.get('note_gout') or None,
+                    note_ambiance=request.data.get('note_ambiance') or None,
                 )
                 ventes_creees.append({
                     "type": "achat",
