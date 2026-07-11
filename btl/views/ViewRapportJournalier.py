@@ -128,7 +128,8 @@ class RapportJournalierViewSet(viewsets.mixins.ListModelMixin,
         donnees_site = DonneesSiteJour.objects.filter(site=site, date=date).first()
         stock_boissons = donnees_site.stock_boissons if donnees_site else None
         nombre_boissons_gratuites = donnees_site.nombre_boissons_gratuites if donnees_site else None
-        conditionnement_boissons = donnees_site.get_conditionnement_display() if donnees_site else None
+        conditionnement_stock = donnees_site.get_conditionnement_stock_display() if donnees_site else None
+        conditionnement_gratuites = donnees_site.get_conditionnement_gratuites_display() if donnees_site else None
 
         # ── Ventes hors promo (normales) ───────────────────────────────
         # Somme des quantités, pas le nombre de lignes Vente : une vente
@@ -172,7 +173,8 @@ class RapportJournalierViewSet(viewsets.mixins.ListModelMixin,
             'ventes_promo_detail': ventes_promo_detail,
             'stock_boissons': stock_boissons,
             'nombre_boissons_gratuites': nombre_boissons_gratuites,
-            'conditionnement_boissons': conditionnement_boissons,
+            'conditionnement_stock': conditionnement_stock,
+            'conditionnement_gratuites': conditionnement_gratuites,
         })
 
     @action(detail=False, methods=['post'], url_path='generer',

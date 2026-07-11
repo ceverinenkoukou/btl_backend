@@ -149,7 +149,7 @@ def task_reporter_stock_boissons_gratuites(date_str=None):
             defaults={
                 'quantite_gratuites_recue': restants,
                 'est_report_gratuites': True,
-                'conditionnement': entry.conditionnement,
+                'conditionnement_gratuites': entry.conditionnement_gratuites,
             }
         )
         if created:
