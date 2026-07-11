@@ -905,11 +905,17 @@ class DonneesSiteJour(BaseModel):
         Site, on_delete=models.CASCADE, related_name='donnees_jour'
     )
     date = models.DateField(help_text="Date des données")
-    conditionnement = models.CharField(
+    conditionnement_stock = models.CharField(
         max_length=10,
         choices=Produit.TypeConditionnement.choices,
         default=Produit.TypeConditionnement.UNITE,
-        help_text="Conditionnement du stock de boissons et des boissons gratuites (à l'unité ou en pack), selon la configuration des produits de l'entreprise"
+        help_text="Conditionnement du stock de boissons (à l'unité ou en pack), selon la configuration des produits de l'entreprise"
+    )
+    conditionnement_gratuites = models.CharField(
+        max_length=10,
+        choices=Produit.TypeConditionnement.choices,
+        default=Produit.TypeConditionnement.UNITE,
+        help_text="Conditionnement des boissons gratuites (à l'unité ou en pack), indépendant du conditionnement du stock"
     )
     stock_boissons = models.PositiveIntegerField(
         null=True, blank=True,
