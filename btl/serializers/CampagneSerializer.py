@@ -25,6 +25,7 @@ class CampagneListSerializer(serializers.ModelSerializer):
             'type_recompense', 'type_recompense_display',    # Ajouté
             'date_debut', 'date_fin', 'description',
             'objectif_degustations', 'objectif_ventes',
+            'objectif_gratuites', 'objectif_goodies',
             'note_gout_active', 'note_gout_max',
             'note_ambiance_active', 'note_ambiance_max',
             'nb_sites', 'nb_hotesses', 'nb_superviseurs', 'created_at'
@@ -68,6 +69,7 @@ class CampagneDetailSerializer(serializers.ModelSerializer):
             'type_recompense', 'type_recompense_display',
             'date_debut', 'date_fin', 'description',
             'objectif_degustations', 'objectif_ventes',
+            'objectif_gratuites', 'objectif_goodies',
             'note_gout_active', 'note_gout_max',
             'note_ambiance_active', 'note_ambiance_max',
             'superviseurs', 'hotesses', 'promotions', 'created_at'
@@ -85,7 +87,8 @@ class CampagneWriteSerializer(serializers.ModelSerializer):
             'type_campagne', 'type_recompense',
             'note_gout_active', 'note_gout_max',
             'note_ambiance_active', 'note_ambiance_max',
-            'objectif_degustations', 'objectif_ventes'
+            'objectif_degustations', 'objectif_ventes',
+            'objectif_gratuites', 'objectif_goodies'
         ]
         read_only_fields = ['id']
 

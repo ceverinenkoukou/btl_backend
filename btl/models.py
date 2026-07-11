@@ -213,6 +213,14 @@ class Campagne(BaseModel):
     # Ces objectifs peuvent devenir optionnels ou requis selon le type_campagne choisi
     objectif_degustations = models.PositiveIntegerField(null=True, blank=True)
     objectif_ventes = models.PositiveIntegerField(null=True, blank=True)
+    objectif_gratuites = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Objectif de boissons gratuites distribuées sur toute la période de la campagne"
+    )
+    objectif_goodies = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Objectif de goodies gagnés par les clients sur toute la période de la campagne"
+    )
 
     superviseurs = models.ManyToManyField(
         RemoteUser,
