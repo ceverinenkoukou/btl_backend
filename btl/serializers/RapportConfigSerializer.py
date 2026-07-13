@@ -29,10 +29,12 @@ class RapportConfigSerializer(serializers.ModelSerializer):
             "show_section_perf_hotesses",
             "show_section_perf_sites",
             "show_section_goodies_par_site",
+            "show_section_goodies_detail",
             "show_section_offres_par_hotesse",
             "show_section_detail_degustations",
             "show_section_horaires_sites",
             "show_section_stock_boissons",
+            "show_section_boissons_total",
             "show_section_ugs_livraisons",
             "show_section_graphiques",
             # Colonnes

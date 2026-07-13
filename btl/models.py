@@ -740,7 +740,8 @@ class RapportConfig(BaseModel):
     show_section_gains_goodies = models.BooleanField(default=True, help_text="Section : Gains de goodies par site")
     show_section_perf_hotesses = models.BooleanField(default=True, help_text="Section : Performance des hôtesses (rapport interne)")
     show_section_perf_sites = models.BooleanField(default=True, help_text="Section : Performances par site")
-    show_section_goodies_par_site = models.BooleanField(default=True, help_text="Section : Goodies distribués par site")
+    show_section_goodies_par_site = models.BooleanField(default=True, help_text="Section : Goodies distribués par site (tableau de synthèse : goodies directs, offres promo, total avantages)")
+    show_section_goodies_detail = models.BooleanField(default=True, help_text="Section : Détail goodies par site et par nom (tableau Site / Goodie / Reçu / Gagné / Restant)")
     show_section_offres_par_hotesse = models.BooleanField(default=True, help_text="Section : Offres par hôtesse (rapport interne)")
     show_section_detail_degustations = models.BooleanField(
         default=False,
@@ -752,7 +753,11 @@ class RapportConfig(BaseModel):
     )
     show_section_stock_boissons = models.BooleanField(
         default=True,
-        help_text="Section : Stock de boissons & boissons gratuites par site"
+        help_text="Section : Stock de boissons & boissons gratuites par site (détail jour par jour)"
+    )
+    show_section_boissons_total = models.BooleanField(
+        default=True,
+        help_text="Section : Total boissons reçues / offertes par site (en canettes, récapitulatif campagne)"
     )
     show_section_ugs_livraisons = models.BooleanField(
         default=True,
