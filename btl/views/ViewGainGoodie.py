@@ -36,27 +36,30 @@ class GainGoodieViewSet(viewsets.ModelViewSet):
             'hotesse',
             'produit_associe',
         ).order_by('-created_at')
-        
+
         if user.role == RemoteUser.Roles.ADMIN:
-            return qs
-        
-        if user.role == RemoteUser.Roles.HOTESSES:
-            return qs.filter(
+            pass
+        elif user.role == RemoteUser.Roles.HOTESSES:
+            qs = qs.filter(
                 Q(site__hotesses=user) |
                 Q(site__campagne__hotesses=user)
             ).distinct()
-        
-        if user.role == RemoteUser.Roles.SUPERVISEUR:
+        elif user.role == RemoteUser.Roles.SUPERVISEUR:
             # Voir les gains de ses sites
-            return qs.filter(site__superviseurs=user)
-        
-        if user.role == RemoteUser.Roles.ENTREPRISES:
+            qs = qs.filter(site__superviseurs=user)
+        elif user.role == RemoteUser.Roles.ENTREPRISES:
             # Voir les gains de ses campagnes
-            return qs.filter(
-                site__campagne__entreprise__user=user
-            )
-        
-        return GainGoodie.objects.none()
+            qs = qs.filter(site__campagne__entreprise__user=user)
+        else:
+            return GainGoodie.objects.none()
+
+        campagne = self.request.query_params.get('campagne')
+        site = self.request.query_params.get('site')
+        if campagne:
+            qs = qs.filter(site__campagne=campagne)
+        if site:
+            qs = qs.filter(site=site)
+        return qs
     
     @action(detail=False, methods=['post'], url_path='enregistrer')
     def enregistrer(self, request):
